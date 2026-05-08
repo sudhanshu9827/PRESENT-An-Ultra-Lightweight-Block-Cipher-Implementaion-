@@ -78,12 +78,28 @@ i> connect measure pin to the target boards vout pin
   
 #Open jupythe notebook in the chipwhisperer directory
 
-  v>  Go to the /jupyter/courses/fault101 and open present_power_anlysis_final.ipynb
+  v>  Go to the /jupyter/courses/fault101 and open present_power_anlysis_CPA.ipynb
+  ##for the CPA Attack 
+
+  vi>Go to the /jupyter/courses/fault101 and open present_power_anlysis_DPA.ipynb
+  ##for the DPA Attack 
   
-  Vi> run the code
+  Vii> run the code
 <p align="center">
   <img src="../Result/trace_visualization.png" width="700">
 </p>
+
+### CPA ATTACK RESULT
 <p align="center">
   <img src="../Result/nibble_recovery.png" width="700">
+</p>
+
+### DPA ATTACK RESULT
+<p align="center">
+  <img src="../Result/DPA.png" width="700">
+</p>
+
+### BOTH ATTACK PASS 
+<p align="center">
+  <img src="../Result/no_trace.png" width="700">
 </p>
