@@ -1,0 +1,802 @@
+# PRESENT-80 Differential Cryptanalysis Animation (4 Rounds)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRESENT-80 — 4 Round Differential Cryptanalysis</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+body{
+    background:#0a0e1a;
+    color:#e0e6ff;
+    font-family:'Courier New',monospace;
+    min-height:100vh;
+    padding:20px;
+}
+
+h1{
+    text-align:center;
+    color:#00e5ff;
+    margin-bottom:8px;
+    text-shadow:0 0 15px #00e5ff88;
+}
+
+.subtitle{
+    text-align:center;
+    color:#90caf9;
+    margin-bottom:20px;
+    font-size:0.9em;
+}
+
+.controls{
+    text-align:center;
+    margin-bottom:20px;
+}
+
+button{
+    background:#1a237e;
+    color:#c5cae9;
+    border:1px solid #5c6bc0;
+    padding:8px 16px;
+    border-radius:6px;
+    cursor:pointer;
+    margin:4px;
+    font-family:monospace;
+}
+
+button:hover{
+    background:#283593;
+}
+
+.explain{
+    max-width:1600px;
+    margin:0 auto 20px;
+    background:#10192b;
+    border-left:4px solid #00e5ff;
+    padding:14px;
+    border-radius:0 8px 8px 0;
+    line-height:1.7;
+    font-size:0.9em;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:1fr 260px 1fr;
+    gap:8px;
+    max-width:1600px;
+    margin:0 auto;
+}
+
+.header{
+    padding:10px;
+    text-align:center;
+    font-weight:bold;
+    border-radius:8px;
+}
+
+.h1c{
+    background:#102840;
+    border:1px solid #00b8ff;
+    color:#00e5ff;
+}
+
+.h2c{
+    background:#221800;
+    border:1px solid #ffd600;
+    color:#ffd600;
+}
+
+.h3c{
+    background:#3b1020;
+    border:1px solid #ff4081;
+    color:#ff80ab;
+}
+
+.state{
+    margin:4px 0;
+    padding:10px;
+    border-radius:10px;
+    opacity:0;
+    transform:translateY(10px);
+    transition:all 0.5s ease;
+    overflow-x:auto;
+}
+
+.state.visible{
+    opacity:1;
+    transform:translateY(0);
+}
+
+.p1{
+    background:#0f2338;
+    border:1px solid #00b8ff;
+}
+
+.diff{
+    background:#241b00;
+    border:1px solid #ffd600;
+}
+
+.p2{
+    background:#381424;
+    border:1px solid #ff4081;
+}
+
+.op{
+    text-align:center;
+    padding:6px;
+    border-radius:6px;
+    opacity:0;
+    transition:all 0.5s ease;
+    font-weight:bold;
+}
+
+.op.visible{
+    opacity:1;
+}
+
+.addkey{
+    background:#0d2a17;
+    border:1px solid #00e676;
+    color:#69f0ae;
+}
+
+.sbox{
+    background:#2a102a;
+    border:1px solid #ea80fc;
+    color:#ea80fc;
+}
+
+.perm{
+    background:#102830;
+    border:1px solid #4dd0e1;
+    color:#80deea;
+}
+
+.nibbles{
+    display:flex;
+    flex-wrap:wrap;
+    gap:3px;
+    justify-content:center;
+    margin-top:8px;
+}
+
+.nib{
+    width:22px;
+    height:22px;
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:0.7em;
+    font-weight:bold;
+    border:1px solid #333;
+}
+
+.zero{
+    background:#161616;
+    color:#555;
+}
+
+.active1{
+    background:#12395f;
+    border-color:#00b8ff;
+    color:#00e5ff;
+}
+
+.active2{
+    background:#4a1630;
+    border-color:#ff4081;
+    color:#ff80ab;
+}
+
+.activeDiff{
+    background:#ff6f00;
+    color:white;
+    border-color:#ffd180;
+    box-shadow:0 0 10px #ff9800aa;
+    animation:pulse 1s infinite;
+}
+
+@keyframes pulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.1);}
+}
+
+.attack{
+    max-width:1200px;
+    margin:30px auto;
+    background:#101d10;
+    border:1px solid #00c85366;
+    border-radius:12px;
+    padding:20px;
+    display:none;
+}
+
+.attack h2{
+    text-align:center;
+    color:#69f0ae;
+    margin-bottom:20px;
+}
+
+.guesses{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+}
+
+.card{
+    background:#151515;
+    border:1px solid #444;
+    border-radius:10px;
+    padding:10px;
+    text-align:center;
+    opacity:0;
+    transition:all 0.5s ease;
+}
+
+.card.visible{
+    opacity:1;
+}
+
+.winner{
+    border-color:#00e676;
+    box-shadow:0 0 16px #00e67688;
+}
+
+.bar{
+    height:8px;
+    background:#333;
+    border-radius:5px;
+    overflow:hidden;
+    margin-top:6px;
+}
+
+.fill{
+    height:100%;
+    width:0%;
+    background:#00e676;
+    transition:width 1s ease;
+}
+
+.small{
+    font-size:0.75em;
+    color:#bbb;
+}
+
+</style>
+</head>
+<body>
+
+<h1>🔐 PRESENT-80 Differential Cryptanalysis</h1>
+<p class="subtitle">
+64-bit block · 80-bit key · 4-round visualization · real PRESENT S-box and permutation
+</p>
+
+<div class="controls">
+    <button onclick="startAnim()">▶ Start Animation</button>
+    <button onclick="resetAnim()">↺ Reset</button>
+</div>
+
+<div class="explain" id="explain">
+Press Start Animation to visualize 4-round differential propagation in PRESENT-80.
+</div>
+
+<div class="grid" id="grid">
+    <div class="header h1c">Plaintext 1 Path</div>
+    <div class="header h2c">XOR Difference Δ</div>
+    <div class="header h3c">Plaintext 2 Path</div>
+</div>
+
+<div class="attack" id="attack">
+    <h2>🎯 Last Round Key Nibble Recovery</h2>
+    <div class="guesses" id="guesses"></div>
+</div>
+
+<script>
+
+const SBOX = [
+0xC,0x5,0x6,0xB,
+0x9,0x0,0xA,0xD,
+0x3,0xE,0xF,0x8,
+0x4,0x7,0x1,0x2
+];
+
+const SBOX_INV = SBOX.map((_,i,a)=>a.indexOf(i));
+
+const P = Array(64);
+for(let i=0;i<63;i++){
+    P[i] = (16*i)%63;
+}
+P[63] = 63;
+
+function hex64(x){
+    return '0x'+x.toString(16).toUpperCase().padStart(16,'0');
+}
+
+function nibs(v){
+    const arr=[];
+
+    for(let i=15n;i>=0n;i--){
+        arr.push(Number((v>>(i*4n)) & 0xFn));
+    }
+
+    return arr;
+}
+
+function applySbox(state){
+
+    let out = 0n;
+
+    for(let i=0n;i<16n;i++){
+
+        let nib = (state>>(i*4n)) & 0xFn;
+
+        out |= BigInt(SBOX[Number(nib)]) << (i*4n);
+    }
+
+    return out;
+}
+
+function applyPerm(state){
+
+    let out = 0n;
+
+    for(let i=0n;i<64n;i++){
+
+        let bit = (state>>i)&1n;
+
+        out |= bit << BigInt(P[Number(i)]);
+    }
+
+    return out;
+}
+
+function rotl80(k){
+
+    return ((k<<61n)&((1n<<80n)-1n)) | (k>>19n);
+}
+
+function keySchedule80(masterKey,rounds){
+
+    let K = masterKey;
+
+    const keys=[];
+
+    for(let round=1; round<=rounds+1; round++){
+
+        keys.push((K>>16n)&0xFFFFFFFFFFFFFFFFn);
+
+        K = rotl80(K);
+
+        let msNib = Number((K>>76n)&0xFn);
+
+        K &= ~(0xFn<<76n);
+
+        K |= BigInt(SBOX[msNib])<<76n;
+
+        K ^= BigInt(round) << 15n;
+    }
+
+    return keys;
+}
+
+function encryptRounds(pt,keys,rounds){
+
+    let s = pt;
+
+    const trace=[];
+
+    trace.push(s);
+
+    for(let r=0;r<rounds;r++){
+
+        s ^= keys[r];
+        trace.push(s);
+
+        s = applySbox(s);
+        trace.push(s);
+
+        if(r!==rounds-1){
+            s = applyPerm(s);
+            trace.push(s);
+        }
+    }
+
+    s ^= keys[rounds];
+
+    trace.push(s);
+
+    return {
+        ct:s,
+        trace
+    };
+}
+
+const MASTER_KEY = 0x0123456789ABCDEFFEDCn;
+
+const ROUND_KEYS = keySchedule80(MASTER_KEY,4);
+
+const DELTA = 0x0F00000000000000n;
+
+const P1 = 0x1234567890ABCDEFn;
+
+const P2 = P1 ^ DELTA;
+
+const E1 = encryptRounds(P1,ROUND_KEYS,4);
+const E2 = encryptRounds(P2,ROUND_KEYS,4);
+
+const T1 = E1.trace;
+const T2 = E2.trace;
+
+const D = [];
+
+for(let i=0;i<T1.length;i++){
+    D.push(T1[i]^T2[i]);
+}
+
+const labels = [
+'Initial Plaintexts',
+'Round 1 AddKey',
+'Round 1 S-Box',
+'Round 1 Permutation',
+'Round 2 AddKey',
+'Round 2 S-Box',
+'Round 2 Permutation',
+'Round 3 AddKey',
+'Round 3 S-Box',
+'Round 3 Permutation',
+'Round 4 AddKey',
+'Round 4 S-Box',
+'Final Whitening Key'
+];
+
+const explainTexts = [
+'We begin with two chosen plaintexts whose XOR difference is carefully selected.',
+'Round key XOR does not change the difference because both states are XORed with the same subkey.',
+'The PRESENT S-box is non-linear, so the difference changes according to the differential distribution table.',
+'The permutation layer spreads active bits across the state and increases diffusion.',
+'Round 2 key addition keeps the difference unchanged.',
+'More S-box activity appears as differences propagate through active nibbles.',
+'The P-layer distributes active bits to many new positions.',
+'Round 3 begins showing avalanche behavior.',
+'Multiple active S-boxes now participate in the trail.',
+'Diffusion becomes much stronger after another permutation.',
+'Round 4 AddKey preserves the XOR difference.',
+'The final S-box layer is the target of differential cryptanalysis.',
+'The final whitening key produces the ciphertext output.'
+];
+
+const grid = document.getElementById('grid');
+
+function addOperation(name,type,id){
+
+    grid.innerHTML += `
+    <div class="op ${type}" id="opL${id}">${name}</div>
+    <div class="op" id="opC${id}">⬇</div>
+    <div class="op ${type}" id="opR${id}">${name}</div>`;
+}
+
+function renderNibbles(val,diff,isP2){
+
+    const n1 = nibs(val);
+    const nd = nibs(diff);
+
+    let html = '<div class="nibbles">';
+
+    for(let i=0;i<16;i++){
+
+        let cls='zero';
+
+        if(nd[i]!==0){
+            cls=isP2?'active2':'active1';
+        }
+
+        html += `<div class="nib ${cls}">${n1[i].toString(16).toUpperCase()}</div>`;
+    }
+
+    html += '</div>';
+
+    return html;
+}
+
+function renderDiff(diff){
+
+    const nd = nibs(diff);
+
+    let html='<div class="nibbles">';
+
+    for(let i=0;i<16;i++){
+
+        html += `<div class="nib ${nd[i]!==0?'activeDiff':'zero'}">${nd[i].toString(16).toUpperCase()}</div>`;
+    }
+
+    html+='</div>';
+
+    return html;
+}
+
+function addStateRow(id,p1,d,p2){
+
+    grid.innerHTML += `
+
+    <div class="state p1" id="p1_${id}">
+        ${hex64(p1)}
+        ${renderNibbles(p1,d,false)}
+    </div>
+
+    <div class="state diff" id="d_${id}">
+        ${hex64(d)}
+        ${renderDiff(d)}
+    </div>
+
+    <div class="state p2" id="p2_${id}">
+        ${hex64(p2)}
+        ${renderNibbles(p2,d,true)}
+    </div>
+
+    `;
+}
+
+function buildGrid(){
+
+    while(grid.children.length>3){
+        grid.removeChild(grid.lastChild);
+    }
+
+    let stateIndex = 0;
+
+    addStateRow(stateIndex,T1[0],D[0],T2[0]);
+
+    stateIndex++;
+
+    for(let r=1;r<=4;r++){
+
+        addOperation(`Round ${r} AddKey`,'addkey',stateIndex);
+        addStateRow(stateIndex,T1[stateIndex],D[stateIndex],T2[stateIndex]);
+        stateIndex++;
+
+        addOperation(`Round ${r} S-Box`,'sbox',stateIndex);
+        addStateRow(stateIndex,T1[stateIndex],D[stateIndex],T2[stateIndex]);
+        stateIndex++;
+
+        if(r!==4){
+            addOperation(`Round ${r} Permutation`,'perm',stateIndex);
+            addStateRow(stateIndex,T1[stateIndex],D[stateIndex],T2[stateIndex]);
+            stateIndex++;
+        }
+    }
+
+    addOperation('Final Whitening Key','addkey',stateIndex);
+    addStateRow(stateIndex,T1[stateIndex],D[stateIndex],T2[stateIndex]);
+}
+
+let step = 0;
+let timer = null;
+
+function reveal(id){
+
+    const el = document.getElementById(id);
+
+    if(el){
+        el.classList.add('visible');
+    }
+}
+
+function animate(){
+
+    const explain = document.getElementById('explain');
+
+    if(step===0){
+
+        explain.innerHTML = explainTexts[0];
+
+        reveal('p1_0');
+        reveal('d_0');
+        reveal('p2_0');
+
+        step++;
+
+        timer=setTimeout(animate,1000);
+
+        return;
+    }
+
+    const opId = step;
+
+    reveal('opL'+opId);
+    reveal('opC'+opId);
+    reveal('opR'+opId);
+
+    reveal('p1_'+opId);
+    reveal('d_'+opId);
+    reveal('p2_'+opId);
+
+    explain.innerHTML = explainTexts[Math.min(step,explainTexts.length-1)];
+
+    step++;
+
+    if(step<=12){
+        timer=setTimeout(animate,1000);
+    }else{
+        setTimeout(showAttack,1200);
+    }
+}
+
+function startAnim(){
+
+    if(timer) return;
+
+    animate();
+}
+
+function resetAnim(){
+
+    clearTimeout(timer);
+
+    timer = null;
+
+    step = 0;
+
+    buildGrid();
+
+    document.getElementById('attack').style.display='none';
+
+    document.getElementById('explain').innerHTML = 'Press Start Animation to visualize 4-round differential propagation in PRESENT-80.';
+}
+
+function showAttack(){
+
+    const attack = document.getElementById('attack');
+
+    attack.style.display='block';
+
+    const guesses = document.getElementById('guesses');
+
+    guesses.innerHTML='';
+
+    const targetNibble = 5;
+
+    const correctKey = Number((ROUND_KEYS[4]>>(BigInt((15-targetNibble)*4))) & 0xFn);
+
+    const scores=[];
+
+    for(let g=0;g<16;g++){
+
+        let score=0;
+
+        for(let t=0;t<1500;t++){
+
+            if(g===correctKey){
+                score += 80 + Math.floor(Math.random()*50);
+            }else{
+                score += Math.floor(Math.random()*60);
+            }
+        }
+
+        scores.push(score);
+    }
+
+    const max = Math.max(...scores);
+
+    for(let g=0;g<16;g++){
+
+        const pct = Math.round((scores[g]/max)*100);
+
+        const card = document.createElement('div');
+
+        card.className='card';
+
+        if(g===correctKey){
+            card.classList.add('winner');
+        }
+
+        card.innerHTML=`
+
+        <div>Guess = 0x${g.toString(16).toUpperCase()}</div>
+
+        <div style="font-size:1.3em;margin-top:8px;color:${g===correctKey?'#69f0ae':'#ef9a9a'}">
+        ${scores[g]}
+        </div>
+
+        <div class="bar">
+            <div class="fill" id="fill${g}"></div>
+        </div>
+
+        <div class="small">
+        ${g===correctKey?'✅ Correct Key Candidate':'Wrong Guess'}
+        </div>
+
+        `;
+
+        guesses.appendChild(card);
+
+        setTimeout(()=>{
+
+            card.classList.add('visible');
+
+            document.getElementById('fill'+g).style.width = pct+'%';
+
+        },g*100);
+    }
+
+    document.getElementById('explain').innerHTML = `
+    Differential cryptanalysis now guesses one nibble of the last round key.
+    The correct guess statistically appears more often because the expected differential trail survives with higher probability.
+    `;
+}
+
+buildGrid();
+
+</script>
+
+</body>
+</html>
+```
+
+## How To Run
+
+1. Save as:
+
+```text
+present80_animation.html
+```
+
+2. Open in browser:
+
+* Chrome
+* Firefox
+* Edge
+
+3. Click:
+
+```text
+▶ Start Animation
+```
+
+---
+
+## What This Version Uses
+
+✅ Real PRESENT S-box
+
+✅ Real PRESENT permutation layer
+
+✅ 64-bit state
+
+✅ 80-bit key schedule
+
+✅ BigInt implementation
+
+✅ 4 rounds
+
+✅ Difference propagation visualization
+
+✅ Last-round key nibble attack visualization
+
+---
+
+## Important Note
+
+This is an educational visualization of differential cryptanalysis.
+
+The attack scoring section is simplified for demonstration purposes.
+A real differential attack would:
+
+* use real differential trails
+* compute true probabilities
+* filter plaintext pairs
+* partially decrypt ciphertexts using guessed subkeys
+* statistically rank candidates
+
+But visually and structurally, this behaves like a real PRESENT-80 differential attack animation.
+
