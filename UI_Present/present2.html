@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PRESENT Cipher — Live Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #050508;
+  --panel: #0c0c14;
+  --panel2: #11111c;
+  --border: #1e1e30;
+  --border2: #2e2e48;
+  --cyan: #00e5ff;
+  --cyan2: #00b8d9;
+  --green: #00ff9d;
+  --green2: #00cc7a;
+  --amber: #ffb300;
+  --red: #ff4757;
+  --purple: #9c6fff;
+  --purple2: #7c4dff;
+  --text: #d0d8ff;
+  --text2: #7880aa;
+  --text3: #3a3e60;
+  --mono: 'Share Tech Mono', monospace;
+  --head: 'Orbitron', monospace;
+  --body: 'Rajdhani', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* scanline effect */
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
+
+/* grid bg */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,229,255,0.03) 1px,transparent 1px);
+  background-size:50px 50px;
+  pointer-events:none;
+  z-index:0;
+}
+
+.wrap{
+  position:relative;
+  z-index:1;
+  max-width:1000px;
+  margin:0 auto;
+  padding:2rem 1.5rem 5rem;
+}
+
+/* ── HEADER ── */
+.hdr{
+  text-align:center;
+  margin-bottom:3rem;
+  position:relative;
+}
+
+.hdr-glow{
+  position:absolute;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:400px;height:100px;
+  background:radial-gradient(ellipse,rgba(0,229,255,0.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+
+.hdr h1{
+  font-family:var(--head);
+  font-size:3rem;
+  font-weight:900;
+  letter-spacing:0.3em;
+  color:var(--cyan);
+  text-shadow:0 0 30px rgba(0,229,255,0.5),0 0 60px rgba(0,229,255,0.2);
+  line-height:1;
+}
+
+.hdr .sub{
+  font-family:var(--mono);
+  font-size:0.72rem;
+  color:var(--text3);
+  letter-spacing:0.25em;
+  margin-top:8px;
+  text-transform:uppercase;
+}
+
+.hdr-badges{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  margin-top:14px;
+  flex-wrap:wrap;
+}
+
+.hbadge{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  padding:3px 10px;
+  border-radius:2px;
+  letter-spacing:0.08em;
+}
+.hbadge.c{ color:var(--cyan); border:1px solid rgba(0,229,255,0.3); background:rgba(0,229,255,0.05);}
+.hbadge.g{ color:var(--green); border:1px solid rgba(0,255,157,0.3); background:rgba(0,255,157,0.05);}
+.hbadge.p{ color:var(--purple); border:1px solid rgba(156,111,255,0.3); background:rgba(156,111,255,0.05);}
+.hbadge.a{ color:var(--amber); border:1px solid rgba(255,179,0,0.3); background:rgba(255,179,0,0.05);}
+
+/* ── INPUT SECTION ── */
+.input-section{
+  background:var(--panel);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  padding:1.75rem;
+  margin-bottom:2.5rem;
+  position:relative;
+}
+
+.input-section::before{
+  content:'';
+  position:absolute;
+  top:0;left:20px;right:20px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+}
+
+.sec-label{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  color:var(--cyan2);
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  margin-bottom:1.25rem;
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+.sec-label::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);}
+
+.mode-tabs{
+  display:flex;
+  gap:4px;
+  margin-bottom:1.25rem;
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:4px;
+}
+
+.mtab{
+  flex:1;
+  padding:9px;
+  font-family:var(--body);
+  font-size:0.88rem;
+  font-weight:600;
+  letter-spacing:0.05em;
+  border:none;
+  border-radius:4px;
+  background:transparent;
+  color:var(--text3);
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.mtab.on{
+  background:rgba(0,229,255,0.12);
+  color:var(--cyan);
+  box-shadow:inset 0 0 0 1px rgba(0,229,255,0.3);
+}
+
+.inputs-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+  margin-bottom:1.25rem;
+}
+@media(max-width:600px){.inputs-grid{grid-template-columns:1fr;}}
+
+.ifield label{
+  display:block;
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--text3);
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+  margin-bottom:6px;
+}
+
+.ifield input{
+  width:100%;
+  font-family:var(--mono);
+  font-size:0.9rem;
+  letter-spacing:0.1em;
+  padding:10px 14px;
+  background:var(--bg);
+  border:1px solid var(--border2);
+  border-radius:4px;
+  color:var(--text);
+  outline:none;
+  transition:all 0.2s;
+}
+.ifield input:focus{border-color:var(--cyan);box-shadow:0 0 0 2px rgba(0,229,255,0.08);}
+.ifield input.err{border-color:var(--red);}
+.ifield .hint{font-family:var(--mono);font-size:0.6rem;color:var(--text3);margin-top:5px;}
+.ifield .errmsg{font-family:var(--mono);font-size:0.6rem;color:var(--red);margin-top:5px;display:none;}
+
+.go-btn{
+  width:100%;
+  padding:14px;
+  font-family:var(--head);
+  font-size:0.85rem;
+  font-weight:700;
+  letter-spacing:0.2em;
+  border:1px solid var(--cyan);
+  border-radius:4px;
+  background:transparent;
+  color:var(--cyan);
+  cursor:pointer;
+  position:relative;
+  overflow:hidden;
+  transition:all 0.25s;
+  text-transform:uppercase;
+}
+
+.go-btn::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:linear-gradient(135deg,rgba(0,229,255,0.12),rgba(0,255,157,0.06));
+  opacity:0;
+  transition:opacity 0.25s;
+}
+.go-btn:hover::before{opacity:1;}
+.go-btn:hover{box-shadow:0 0 20px rgba(0,229,255,0.25),inset 0 0 20px rgba(0,229,255,0.05);}
+.go-btn:active{transform:scale(0.99);}
+
+/* ── PIPELINE ANIMATION AREA ── */
+#pipelineArea{display:none;}
+
+/* Progress header */
+.pipeline-hdr{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:1.5rem;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.pipeline-title{
+  font-family:var(--head);
+  font-size:0.8rem;
+  color:var(--cyan);
+  letter-spacing:0.15em;
+  text-transform:uppercase;
+}
+
+.pipeline-speed{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.spd-label{font-family:var(--mono);font-size:0.6rem;color:var(--text3);letter-spacing:0.1em;}
+
+.spd-btn{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  padding:3px 8px;
+  border-radius:3px;
+  border:1px solid var(--border2);
+  background:transparent;
+  color:var(--text2);
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.spd-btn.on{color:var(--amber);border-color:rgba(255,179,0,0.4);background:rgba(255,179,0,0.05);}
+.spd-btn:hover{color:var(--text);border-color:var(--border2);}
+
+/* Global status bar */
+.status-bar{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:10px 16px;
+  margin-bottom:1.5rem;
+  flex-wrap:wrap;
+}
+
+.status-dot{
+  width:8px;height:8px;
+  border-radius:50%;
+  background:var(--text3);
+  flex-shrink:0;
+  transition:background 0.3s;
+}
+.status-dot.running{background:var(--green);box-shadow:0 0 8px var(--green);}
+.status-dot.done{background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
+
+.status-text{
+  font-family:var(--mono);
+  font-size:0.72rem;
+  color:var(--text2);
+  flex:1;
+  min-width:0;
+}
+
+.status-counter{
+  font-family:var(--mono);
+  font-size:0.72rem;
+  color:var(--text3);
+}
+
+/* Master progress */
+.master-prog{
+  height:3px;
+  background:var(--border);
+  border-radius:2px;
+  margin-bottom:1.5rem;
+  overflow:hidden;
+}
+.master-fill{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,var(--cyan),var(--green));
+  border-radius:2px;
+  transition:width 0.4s ease;
+  position:relative;
+}
+.master-fill::after{
+  content:'';
+  position:absolute;
+  right:0;top:-2px;
+  width:4px;height:7px;
+  background:white;
+  border-radius:2px;
+  box-shadow:0 0 8px white;
+}
+
+/* Stats cards */
+.stats-strip{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:6px;
+  margin-bottom:1.5rem;
+}
+@media(max-width:700px){.stats-strip{grid-template-columns:repeat(3,1fr);}}
+
+.scard{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:10px 12px;
+  text-align:center;
+}
+.scard .sv{
+  font-family:var(--head);
+  font-size:1.2rem;
+  color:var(--cyan);
+  line-height:1;
+  margin-bottom:3px;
+}
+.scard .sl{
+  font-family:var(--mono);
+  font-size:0.55rem;
+  color:var(--text3);
+  text-transform:uppercase;
+  letter-spacing:0.1em;
+}
+
+/* ── PIPELINE FLOW ── */
+/* The visual pipeline: INPUT → [ROUND 1] → [ROUND 2] → ... → OUTPUT */
+
+.flow-container{
+  position:relative;
+}
+
+/* Input block */
+.flow-input{
+  display:flex;
+  align-items:stretch;
+  margin-bottom:8px;
+  gap:0;
+}
+
+.flow-block{
+  background:var(--panel);
+  border:1px solid var(--border2);
+  border-radius:6px;
+  padding:12px 16px;
+  flex:1;
+  position:relative;
+}
+
+.flow-block.active{
+  border-color:var(--cyan);
+  box-shadow:0 0 15px rgba(0,229,255,0.15);
+}
+.flow-block.done{border-color:var(--green2);background:rgba(0,255,157,0.03);}
+
+.fb-label{
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--text3);
+  text-transform:uppercase;
+  letter-spacing:0.12em;
+  margin-bottom:4px;
+}
+
+.fb-val{
+  font-family:var(--mono);
+  font-size:0.88rem;
+  color:var(--text);
+  letter-spacing:0.08em;
+  word-break:break-all;
+}
+
+.fb-val.c{color:var(--cyan);}
+.fb-val.g{color:var(--green);}
+
+/* connector arrow */
+.flow-arrow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  flex-shrink:0;
+  font-size:0.7rem;
+  color:var(--text3);
+  position:relative;
+}
+
+.flow-arrow.lit{color:var(--cyan);}
+
+/* The big pipeline — round blocks */
+.pipeline-rounds{
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+
+.pr-item{
+  display:flex;
+  align-items:stretch;
+  gap:0;
+  opacity:0.35;
+  transition:all 0.3s;
+}
+.pr-item.active{opacity:1;}
+.pr-item.done{opacity:0.8;}
+
+/* Round block itself */
+.pr-block{
+  flex:1;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:6px;
+  overflow:hidden;
+  cursor:pointer;
+  transition:all 0.25s;
+}
+
+.pr-block:hover{border-color:var(--border2);}
+.pr-item.active .pr-block{border-color:var(--cyan);box-shadow:0 0 12px rgba(0,229,255,0.15);}
+.pr-item.done .pr-block{border-color:var(--border2);}
+.pr-item.expanded .pr-block{border-color:var(--purple);}
+
+/* Round top row */
+.pr-top{
+  display:grid;
+  grid-template-columns:56px 1fr 1fr 28px;
+  align-items:center;
+  min-height:42px;
+}
+
+.pr-rnum{
+  padding:0 10px;
+  border-right:1px solid var(--border);
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.rnum-txt{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  font-weight:700;
+  color:var(--text3);
+  letter-spacing:0.08em;
+}
+
+.pr-item.active .rnum-txt{color:var(--cyan);}
+.pr-item.done .rnum-txt{color:var(--text2);}
+
+/* Processing pills inside the header */
+.pr-stages{
+  padding:6px 10px;
+  display:flex;
+  gap:4px;
+  align-items:center;
+  border-right:1px solid var(--border);
+}
+
+.stage-pill{
+  font-family:var(--mono);
+  font-size:0.55rem;
+  letter-spacing:0.06em;
+  padding:2px 6px;
+  border-radius:2px;
+  border:1px solid var(--border2);
+  color:var(--text3);
+  white-space:nowrap;
+  transition:all 0.3s;
+}
+.stage-pill.s1.lit{border-color:rgba(255,179,0,0.5);color:var(--amber);background:rgba(255,179,0,0.08);}
+.stage-pill.s2.lit{border-color:rgba(156,111,255,0.5);color:var(--purple);background:rgba(156,111,255,0.08);}
+.stage-pill.s3.lit{border-color:rgba(0,255,157,0.5);color:var(--green);background:rgba(0,255,157,0.08);}
+
+.pr-state{
+  padding:0 10px;
+  font-family:var(--mono);
+  font-size:0.75rem;
+  color:var(--text3);
+  letter-spacing:0.05em;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.pr-item.active .pr-state,.pr-item.done .pr-state{color:var(--text);}
+
+.pr-chevron{
+  width:28px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:0.6rem;
+  color:var(--text3);
+  transition:transform 0.2s;
+}
+.pr-item.expanded .pr-chevron{transform:rotate(180deg);color:var(--purple);}
+
+/* expanded detail */
+.pr-detail{
+  display:none;
+  border-top:1px solid var(--border);
+  background:rgba(0,0,0,0.3);
+}
+.pr-item.expanded .pr-detail{display:block;}
+
+.pr-detail-inner{padding:14px 16px;}
+
+.detail-pipeline{
+  display:flex;
+  align-items:stretch;
+  gap:6px;
+}
+
+@media(max-width:700px){
+  .detail-pipeline{flex-direction:column;}
+  .det-arrow{transform:rotate(90deg);}
+}
+
+.det-stage{
+  flex:1;
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-radius:5px;
+  padding:10px 12px;
+}
+
+.det-stage.s-key{border-color:rgba(255,179,0,0.2);}
+.det-stage.s-sbox{border-color:rgba(156,111,255,0.2);}
+.det-stage.s-perm{border-color:rgba(0,255,157,0.2);}
+.det-stage.s-in{border-color:rgba(0,229,255,0.15);}
+
+.ds-lbl{
+  font-family:var(--mono);
+  font-size:0.55rem;
+  letter-spacing:0.1em;
+  text-transform:uppercase;
+  margin-bottom:5px;
+}
+.ds-lbl.c{color:var(--cyan2);}
+.ds-lbl.a{color:var(--amber);}
+.ds-lbl.p{color:var(--purple);}
+.ds-lbl.g{color:var(--green2);}
+
+.ds-val{
+  font-family:var(--mono);
+  font-size:0.72rem;
+  word-break:break-all;
+  line-height:1.5;
+}
+.ds-val.c{color:var(--cyan);}
+.ds-val.a{color:var(--amber);}
+.ds-val.p{color:var(--purple);}
+.ds-val.g{color:var(--green);}
+.ds-val.dim{color:var(--text2);}
+
+.det-arrow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--text3);
+  font-size:0.65rem;
+  flex-shrink:0;
+  width:16px;
+}
+
+/* key info row */
+.key-info-row{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid var(--border);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.ki-item .ki-label{font-family:var(--mono);font-size:0.55rem;color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;}
+.ki-item .ki-val{font-family:var(--mono);font-size:0.68rem;color:var(--text2);word-break:break-all;line-height:1.5;}
+
+/* bit visualizer strip */
+.bit-strip{
+  display:flex;
+  flex-wrap:wrap;
+  gap:1.5px;
+  margin-top:6px;
+}
+.bt{
+  width:5px;height:5px;
+  border-radius:1px;
+  background:var(--border2);
+  transition:background 0.1s;
+}
+.bt.on{background:var(--cyan);}
+.bt.on.a{background:var(--amber);}
+.bt.on.p{background:var(--purple);}
+.bt.on.g{background:var(--green);}
+
+/* Whitening special */
+.pr-item.whitening .pr-block{background:rgba(0,255,157,0.04);}
+.pr-item.whitening.active .pr-block{border-color:var(--green);box-shadow:0 0 12px rgba(0,255,157,0.15);}
+.pr-item.whitening .rnum-txt{color:var(--green2);}
+
+/* Particle data flow — animated dots on the left connector */
+.flow-line-wrap{
+  width:32px;
+  position:relative;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.flow-line{
+  position:absolute;
+  top:0;bottom:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:1px;
+  background:linear-gradient(180deg,transparent,var(--border2),transparent);
+}
+
+.flow-dot{
+  position:absolute;
+  width:6px;height:6px;
+  border-radius:50%;
+  background:var(--cyan);
+  box-shadow:0 0 6px var(--cyan);
+  left:50%;
+  transform:translateX(-50%);
+  opacity:0;
+}
+
+@keyframes flowDown{
+  0%{top:0%;opacity:0;}
+  10%{opacity:1;}
+  90%{opacity:1;}
+  100%{top:100%;opacity:0;}
+}
+
+.flow-dot.anim{animation:flowDown 0.6s linear forwards;}
+
+/* ── OUTPUT ── */
+.output-section{
+  background:var(--panel);
+  border:1px solid var(--green2);
+  border-radius:8px;
+  padding:1.5rem;
+  margin-top:8px;
+  position:relative;
+  display:none;
+}
+.output-section::before{
+  content:'';
+  position:absolute;
+  top:0;left:20px;right:20px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--green),transparent);
+}
+.output-section.show{display:block;}
+
+.out-label{
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--green);
+  letter-spacing:0.2em;
+  text-transform:uppercase;
+  margin-bottom:8px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.out-label .dot{
+  width:7px;height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 8px var(--green);
+  animation:pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 5px var(--green);}
+  50%{box-shadow:0 0 15px var(--green),0 0 30px var(--green);}
+}
+
+.out-val{
+  font-family:var(--head);
+  font-size:1.4rem;
+  font-weight:700;
+  letter-spacing:0.12em;
+  color:white;
+  text-shadow:0 0 20px rgba(0,255,157,0.4);
+  word-break:break-all;
+}
+
+.out-meta{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  color:var(--text3);
+  margin-top:8px;
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+}
+
+.copy-btn{
+  font-family:var(--mono);
+  font-size:0.65rem;
+  padding:4px 10px;
+  border-radius:3px;
+  border:1px solid rgba(0,255,157,0.3);
+  background:transparent;
+  color:var(--green2);
+  cursor:pointer;
+  transition:all 0.15s;
+  margin-top:8px;
+  display:inline-block;
+}
+.copy-btn:hover{background:rgba(0,255,157,0.08);}
+
+/* ── AUTHORS FOOTER ── */
+.authors{
+  margin-top:4rem;
+  text-align:center;
+  position:relative;
+}
+
+.authors::before{
+  content:'';
+  display:block;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--border2),transparent);
+  margin-bottom:2rem;
+}
+
+.authors-by{
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--text3);
+  letter-spacing:0.25em;
+  text-transform:uppercase;
+  margin-bottom:1rem;
+}
+
+.authors-names{
+  display:flex;
+  justify-content:center;
+  gap:0;
+  flex-wrap:wrap;
+}
+
+.aname{
+  font-family:var(--head);
+  font-size:1.1rem;
+  font-weight:700;
+  letter-spacing:0.1em;
+  position:relative;
+  padding:0 20px;
+}
+
+.aname:not(:last-child)::after{
+  content:'·';
+  position:absolute;
+  right:-4px;
+  color:var(--text3);
+  font-weight:400;
+}
+
+.aname.n1{color:var(--cyan);text-shadow:0 0 20px rgba(0,229,255,0.4);}
+.aname.n2{color:var(--purple);text-shadow:0 0 20px rgba(156,111,255,0.4);}
+.aname.n3{color:var(--green);text-shadow:0 0 20px rgba(0,255,157,0.4);}
+
+.authors-role{
+  font-family:var(--mono);
+  font-size:0.6rem;
+  color:var(--text3);
+  letter-spacing:0.15em;
+  margin-top:12px;
+}
+
+@keyframes glitch{
+  0%,100%{transform:translate(0);}
+  20%{transform:translate(-1px,1px);}
+  40%{transform:translate(1px,-1px);}
+  60%{transform:translate(-0.5px,0.5px);}
+  80%{transform:translate(0.5px,-0.5px);}
+}
+
+.aname:hover{animation:glitch 0.3s linear;}
+
+/* animations */
+@keyframes fadeSlide{
+  from{opacity:0;transform:translateY(10px);}
+  to{opacity:1;transform:translateY(0);}
+}
+.fadein{animation:fadeSlide 0.4s ease both;}
+
+@keyframes scanPulse{
+  0%,100%{opacity:0.6;}
+  50%{opacity:1;}
+}
+
+/* active round glow line */
+.pr-item.active::before{
+  content:'';
+  position:absolute;
+  left:0;top:0;bottom:0;width:2px;
+  background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);
+  border-radius:2px;
+}
+.pr-item{position:relative;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-glow"></div>
+    <h1>PRESENT</h1>
+    <div class="sub">Ultra-Lightweight Block Cipher — Live Pipeline Visualizer</div>
+    <div class="hdr-badges">
+      <span class="hbadge c">64-bit Block</span>
+      <span class="hbadge g">80-bit Key</span>
+      <span class="hbadge p">31 Rounds</span>
+      <span class="hbadge a">SP-Network</span>
+      <span class="hbadge c">1570 GE</span>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-section fadein">
+    <div class="sec-label">// cipher configuration</div>
+
+    <div class="mode-tabs">
+      <button class="mtab on" id="tabEnc" onclick="setMode('encrypt')">⬆ ENCRYPT</button>
+      <button class="mtab" id="tabDec" onclick="setMode('decrypt')">⬇ DECRYPT</button>
+    </div>
+
+    <div class="inputs-grid">
+      <div class="ifield">
+        <label id="inputLbl">Plaintext (hex)</label>
+        <input type="text" id="ptIn" placeholder="0000000000000000" maxlength="16" oninput="liveValidate()"/>
+        <div class="hint">16 hex chars = 64 bits</div>
+        <div class="errmsg" id="ptErr">Must be exactly 16 hex characters (0-9, a-f)</div>
+      </div>
+      <div class="ifield">
+        <label>Secret Key (hex)</label>
+        <input type="text" id="keyIn" placeholder="00000000000000000000" maxlength="20" oninput="liveValidate()"/>
+        <div class="hint">20 hex chars = 80 bits</div>
+        <div class="errmsg" id="keyErr">Must be exactly 20 hex characters (0-9, a-f)</div>
+      </div>
+    </div>
+
+    <button class="go-btn" id="goBtn" onclick="startPipeline()">
+      ▶ INITIATE ENCRYPTION PIPELINE
+    </button>
+  </div>
+
+  <!-- PIPELINE AREA -->
+  <div id="pipelineArea">
+
+    <div class="pipeline-hdr">
+      <div class="pipeline-title">// live pipeline execution</div>
+      <div class="pipeline-speed">
+        <span class="spd-label">SPEED:</span>
+        <button class="spd-btn" onclick="setSpeed(600)" id="spd1">SLOW</button>
+        <button class="spd-btn on" onclick="setSpeed(200)" id="spd2">NORMAL</button>
+        <button class="spd-btn" onclick="setSpeed(50)" id="spd3">FAST</button>
+        <button class="spd-btn" onclick="setSpeed(0)" id="spd4">INSTANT</button>
+      </div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="status-text" id="statusText">Ready</div>
+      <div class="status-counter" id="statusCounter"></div>
+    </div>
+
+    <div class="master-prog"><div class="master-fill" id="masterFill"></div></div>
+
+    <div class="stats-strip">
+      <div class="scard"><div class="sv" id="stRound">0</div><div class="sl">Current Round</div></div>
+      <div class="scard"><div class="sv" id="stSbox">0</div><div class="sl">S-box Calls</div></div>
+      <div class="scard"><div class="sv" id="stPerm">0</div><div class="sl">Permutations</div></div>
+      <div class="scard"><div class="sv" id="stKey">0</div><div class="sl">Key Schedules</div></div>
+      <div class="scard"><div class="sv" id="stDiff">—</div><div class="sl">Bit Diff</div></div>
+    </div>
+
+    <!-- Input block display -->
+    <div class="flow-input fadein">
+      <div class="flow-block" id="inputBlock">
+        <div class="fb-label">INPUT</div>
+        <div class="fb-val c" id="inputDisp">—</div>
+      </div>
+    </div>
+
+    <!-- Rounds pipeline -->
+    <div class="pipeline-rounds" id="pipelineRounds"></div>
+
+    <!-- Output -->
+    <div class="output-section" id="outputSection">
+      <div class="out-label"><span class="dot"></span>FINAL OUTPUT</div>
+      <div class="out-val" id="outputVal">—</div>
+      <div class="out-meta">
+        <span id="outMeta1">—</span>
+        <span id="outMeta2">—</span>
+        <span id="outMeta3">—</span>
+      </div>
+      <button class="copy-btn" onclick="copyOut()">[ copy to clipboard ]</button>
+    </div>
+
+  </div>
+
+  <!-- AUTHORS -->
+  <div class="authors fadein">
+    <div class="authors-by">// developed by</div>
+    <div class="authors-names">
+      <span class="aname n1">SUDHANSHU</span>
+      <span class="aname n2">SHRINIDHI</span>
+      <span class="aname n3">PANKAJ</span>
+    </div>
+    <div class="authors-role">PRESENT Cipher Implementation · Cryptography Lab</div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  PRESENT Cipher Core
+// ═══════════════════════════════════════════
+const SBOX     = [0xC,0x5,0x6,0xB,0x9,0x0,0xA,0xD,0x3,0xE,0xF,0x8,0x4,0x7,0x1,0x2];
+const SBOX_INV = new Array(16);
+for(let i=0;i<16;i++) SBOX_INV[SBOX[i]]=i;
+
+const PBOX=[0,16,32,48,1,17,33,49,2,18,34,50,3,19,35,51,4,20,36,52,5,21,37,53,6,22,38,54,7,23,39,55,8,24,40,56,9,25,41,57,10,26,42,58,11,27,43,59,12,28,44,60,13,29,45,61,14,30,46,62,15,31,47,63];
+const PBOX_INV=new Array(64);
+for(let i=0;i<64;i++) PBOX_INV[PBOX[i]]=i;
+
+const h2b=h=>BigInt('0x'+h);
+const b2h=(n,d=16)=>n.toString(16).toUpperCase().padStart(d,'0');
+const b2bits=(n,l=64)=>{let a=[];for(let i=l-1;i>=0;i--)a.push(Number((n>>BigInt(i))&1n));return a;}
+
+function sboxL(s,inv=false){
+  let o=0n; const b=inv?SBOX_INV:SBOX;
+  for(let i=0;i<16;i++) o|=BigInt(b[Number((s>>BigInt(i*4))&0xFn)])<<BigInt(i*4);
+  return o;
+}
+
+function pL(s,inv=false){
+  const p=inv?PBOX_INV:PBOX; let o=0n;
+  for(let i=0;i<64;i++) if((s>>BigInt(i))&1n) o|=1n<<BigInt(p[i]);
+  return o;
+}
+
+function genKeys(kh){
+  let K=h2b(kh); const keys=[];
+  for(let r=1;r<=32;r++){
+    keys.push((K>>16n)&0xFFFFFFFFFFFFFFFFn);
+    K=((K<<61n)|(K>>19n))&0xFFFFFFFFFFFFFFFFFFFFn;
+    const t=Number((K>>76n)&0xFn);
+    K=(K&0x0FFFFFFFFFFFFFFFFFFFn)|(BigInt(SBOX[t])<<76n);
+    K=K^(BigInt(r)<<15n);
+  }
+  return keys;
+}
+
+function hamming(a,b){let d=a^b,c=0;while(d){c+=Number(d&1n);d>>=1n;}return c;}
+
+function encPipeline(pt,kh){
+  const keys=genKeys(kh);
+  let state=h2b(pt); const rounds=[];
+  for(let i=0;i<31;i++){
+    const si=state;
+    const ak=si^keys[i];
+    const sb=sboxL(ak);
+    const pl=pL(sb);
+    state=pl;
+    rounds.push({round:i+1,key:keys[i],stateIn:si,afterAddKey:ak,afterSBox:sb,afterPLayer:pl,stateOut:state});
+  }
+  const si=state; state=state^keys[31];
+  rounds.push({round:'W',label:'Post-Whitening',key:keys[31],stateIn:si,afterAddKey:state,afterSBox:null,afterPLayer:null,stateOut:state});
+  return{rounds,result:state};
+}
+
+function decPipeline(ct,kh){
+  const keys=genKeys(kh);
+  let state=h2b(ct); const rounds=[];
+  // undo whitening
+  const si0=state; state=state^keys[31];
+  rounds.push({round:'W',label:'Un-Whitening',key:keys[31],stateIn:si0,afterAddKey:state,afterSBox:null,afterPLayer:null,stateOut:state});
+  for(let i=30;i>=0;i--){
+    const si=state;
+    const ip=pL(state,true);
+    const is_=sboxL(ip,true);
+    const ak=is_^keys[i];
+    state=ak;
+    rounds.push({round:31-i,key:keys[i],stateIn:si,afterAddKey:ak,afterSBox:is_,afterPLayer:ip,stateOut:state});
+  }
+  return{rounds,result:state};
+}
+
+// ═══════════════════════════════════════════
+//  UI State
+// ═══════════════════════════════════════════
+let mode='encrypt';
+let speed=200;
+let animTimer=null;
+let allRoundData=[];
+let currentStep=0;
+
+function setMode(m){
+  mode=m;
+  document.getElementById('tabEnc').classList.toggle('on',m==='encrypt');
+  document.getElementById('tabDec').classList.toggle('on',m==='decrypt');
+  document.getElementById('inputLbl').textContent=m==='encrypt'?'Plaintext (hex)':'Ciphertext (hex)';
+  document.getElementById('ptIn').placeholder=m==='encrypt'?'0000000000000000':'5579C1387B228445';
+  document.getElementById('pipelineArea').style.display='none';
+  document.getElementById('outputSection').classList.remove('show');
+}
+
+function setSpeed(s){
+  speed=s;
+  ['spd1','spd2','spd3','spd4'].forEach((id,i)=>{
+    document.getElementById(id).classList.toggle('on',[600,200,50,0][i]===s);
+  });
+}
+
+function isHex(s,l){return /^[0-9a-fA-F]*$/.test(s)&&s.length===l;}
+
+function liveValidate(){
+  const pt=document.getElementById('ptIn').value.trim();
+  const k=document.getElementById('keyIn').value.trim();
+  const ptOk=isHex(pt,16);
+  const kOk=isHex(k,20);
+  document.getElementById('ptIn').classList.toggle('err',pt.length>0&&!ptOk);
+  document.getElementById('ptErr').style.display=(pt.length>0&&!ptOk)?'block':'none';
+  document.getElementById('keyIn').classList.toggle('err',k.length>0&&!kOk);
+  document.getElementById('keyErr').style.display=(k.length>0&&!kOk)?'block':'none';
+}
+
+// bit HTML
+function bH(n,cls=''){
+  return b2bits(n,64).map(b=>`<span class="bt${b?' on'+(cls?' '+cls:'')+''   :''}"></span>`).join('');
+}
+
+function buildRoundItem(r,idx){
+  const isW=r.round==='W';
+  const lbl=isW?r.label:('R'+String(r.round).padStart(2,'0'));
+  const keyHex=b2h(r.key,16);
+  const stateHex=b2h(r.stateOut,16);
+
+  let detailHTML='';
+  if(!isW){
+    const siH=b2h(r.stateIn,16);
+    const akH=b2h(r.afterAddKey,16);
+    const sbH=b2h(r.afterSBox,16);
+    const plH=b2h(r.afterPLayer,16);
+    const isDec=mode==='decrypt';
+    const l1=isDec?'Inv. P-Layer':'⊕ Add Key';
+    const l2=isDec?'Inv. S-Box':'S-Box Layer';
+    const l3=isDec?'⊕ Add Key':'P-Layer';
+    const v1=isDec?b2h(r.afterPLayer,16):akH;
+    const v2=isDec?b2h(r.afterSBox,16):sbH;
+    const v3=isDec?akH:plH;
+    const b1=isDec?(r.afterPLayer||r.stateIn):r.afterAddKey;
+    const b2_=isDec?(r.afterSBox||r.stateIn):r.afterSBox;
+    const b3=r.stateOut;
+
+    detailHTML=`
+    <div class="detail-pipeline">
+      <div class="det-stage s-in">
+        <div class="ds-lbl c">State In</div>
+        <div class="ds-val c">${siH}</div>
+        <div class="bit-strip">${bH(r.stateIn)}</div>
+      </div>
+      <div class="det-arrow">→</div>
+      <div class="det-stage s-key">
+        <div class="ds-lbl a">${l1}</div>
+        <div class="ds-val a">${v1}</div>
+        <div class="bit-strip">${bH(b1,'a')}</div>
+      </div>
+      <div class="det-arrow">→</div>
+      <div class="det-stage s-sbox">
+        <div class="ds-lbl p">${l2}</div>
+        <div class="ds-val p">${v2}</div>
+        <div class="bit-strip">${bH(b2_,'p')}</div>
+      </div>
+      <div class="det-arrow">→</div>
+      <div class="det-stage s-perm">
+        <div class="ds-lbl g">${l3}</div>
+        <div class="ds-val g">${v3}</div>
+        <div class="bit-strip">${bH(b3,'g')}</div>
+      </div>
+    </div>
+    <div class="key-info-row">
+      <div class="ki-item">
+        <div class="ki-label">Round Key K${isW?'32':r.round} (hex)</div>
+        <div class="ki-val">${keyHex}</div>
+      </div>
+      <div class="ki-item">
+        <div class="ki-label">Round Key K${isW?'32':r.round} (binary groups)</div>
+        <div class="ki-val">${r.key.toString(2).padStart(64,'0').match(/.{1,8}/g).join(' ')}</div>
+      </div>
+    </div>`;
+  } else {
+    const siH=b2h(r.stateIn,16);
+    const soH=b2h(r.stateOut,16);
+    detailHTML=`
+    <div class="detail-pipeline">
+      <div class="det-stage s-in">
+        <div class="ds-lbl c">State In</div>
+        <div class="ds-val c">${siH}</div>
+        <div class="bit-strip">${bH(r.stateIn)}</div>
+      </div>
+      <div class="det-arrow">→</div>
+      <div class="det-stage s-key" style="flex:2">
+        <div class="ds-lbl a">⊕ XOR with K${isW?'32':r.round}</div>
+        <div class="ds-val a">${keyHex}</div>
+        <div class="bit-strip">${bH(r.key,'a')}</div>
+      </div>
+      <div class="det-arrow">→</div>
+      <div class="det-stage s-perm">
+        <div class="ds-lbl g">Output</div>
+        <div class="ds-val g">${soH}</div>
+        <div class="bit-strip">${bH(r.stateOut,'g')}</div>
+      </div>
+    </div>
+    <div class="key-info-row">
+      <div class="ki-item">
+        <div class="ki-label">Whitening Key K32 (hex)</div>
+        <div class="ki-val">${keyHex}</div>
+      </div>
+      <div class="ki-item">
+        <div class="ki-label">No S-box / P-layer in whitening</div>
+        <div class="ki-val" style="color:var(--text3)">Final XOR only — output is ciphertext</div>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="pr-item ${isW?'whitening':''}" id="ri-${idx}" data-idx="${idx}">
+    <div class="pr-block">
+      <div class="pr-top" onclick="toggleDetail(${idx})">
+        <div class="pr-rnum"><span class="rnum-txt">${lbl}</span></div>
+        <div class="pr-stages">
+          ${isW
+            ? `<span class="stage-pill s1" id="sp1-${idx}">XOR K32</span>`
+            : `<span class="stage-pill s1" id="sp1-${idx}">${mode==='decrypt'?'inv-P':'addKey'}</span>
+               <span class="stage-pill s2" id="sp2-${idx}">${mode==='decrypt'?'inv-S':'S-box'}</span>
+               <span class="stage-pill s3" id="sp3-${idx}">${mode==='decrypt'?'addKey':'P-layer'}</span>`
+          }
+        </div>
+        <div class="pr-state" id="rs-${idx}">${mode==='decrypt'?'waiting...':'waiting...'}</div>
+        <div class="pr-chevron">▼</div>
+      </div>
+      <div class="pr-detail">
+        <div class="pr-detail-inner">${detailHTML}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleDetail(idx){
+  const item=document.getElementById('ri-'+idx);
+  item.classList.toggle('expanded');
+}
+
+async function startPipeline(){
+  const pt=document.getElementById('ptIn').value.trim().toUpperCase();
+  const key=document.getElementById('keyIn').value.trim().toUpperCase();
+
+  if(!isHex(pt,16)){document.getElementById('ptIn').classList.add('err');document.getElementById('ptErr').style.display='block';return;}
+  if(!isHex(key,20)){document.getElementById('keyIn').classList.add('err');document.getElementById('keyErr').style.display='block';return;}
+
+  // Compute
+  const pipeline=mode==='encrypt'?encPipeline(pt,key):decPipeline(pt,key);
+  allRoundData=pipeline.rounds;
+
+  // Show area
+  const area=document.getElementById('pipelineArea');
+  area.style.display='block';
+  document.getElementById('outputSection').classList.remove('show');
+
+  // Set input display
+  document.getElementById('inputDisp').textContent=pt;
+  document.getElementById('inputBlock').classList.add('active');
+
+  // Build all round HTML
+  const container=document.getElementById('pipelineRounds');
+  container.innerHTML=allRoundData.map((r,i)=>buildRoundItem(r,i)).join('');
+
+  // scroll
+  setTimeout(()=>area.scrollIntoView({behavior:'smooth',block:'start'}),100);
+
+  // Reset stats
+  document.getElementById('stRound').textContent='0';
+  document.getElementById('stSbox').textContent='0';
+  document.getElementById('stPerm').textContent='0';
+  document.getElementById('stKey').textContent='0';
+  document.getElementById('stDiff').textContent='—';
+  document.getElementById('masterFill').style.width='0%';
+
+  const dot=document.getElementById('statusDot');
+  dot.classList.remove('done');
+  dot.classList.add('running');
+
+  if(speed===0){
+    // Instant mode — show all at once
+    allRoundData.forEach((r,i)=>activateRound(r,i));
+    finishPipeline(pipeline.result,pt,key);
+    return;
+  }
+
+  // Animated step-by-step
+  let sboxTotal=0, permTotal=0, keyTotal=0;
+
+  for(let i=0;i<allRoundData.length;i++){
+    const r=allRoundData[i];
+    const isW=r.round==='W';
+
+    setStatus(`Processing ${isW?r.label:'Round '+r.round}...`, `${i+1} / ${allRoundData.length}`);
+    document.getElementById('masterFill').style.width=((i/allRoundData.length)*100)+'%';
+
+    // Activate this round
+    activateRound(r,i);
+
+    // animate stage pills
+    if(!isW){
+      await delay(speed*0.3);
+      const p1=document.getElementById('sp1-'+i);
+      const p2=document.getElementById('sp2-'+i);
+      const p3=document.getElementById('sp3-'+i);
+      if(p1)p1.classList.add('lit');
+      await delay(speed*0.3);
+      if(p2)p2.classList.add('lit');
+      await delay(speed*0.3);
+      if(p3)p3.classList.add('lit');
+      sboxTotal+=16; permTotal++; keyTotal++;
+    } else {
+      await delay(speed*0.3);
+      const p1=document.getElementById('sp1-'+i);
+      if(p1)p1.classList.add('lit');
+      keyTotal++;
+    }
+
+    // Update stats
+    document.getElementById('stRound').textContent=isW?'W':r.round;
+    document.getElementById('stSbox').textContent=sboxTotal;
+    document.getElementById('stPerm').textContent=permTotal;
+    document.getElementById('stKey').textContent=keyTotal;
+
+    // Mark prev as done
+    if(i>0) document.getElementById('ri-'+(i-1))?.classList.replace('active','done');
+
+    await delay(speed*0.5);
+  }
+
+  finishPipeline(pipeline.result,pt,key);
+}
+
+function activateRound(r,i){
+  const item=document.getElementById('ri-'+i);
+  if(!item)return;
+  item.classList.remove('done');
+  item.classList.add('active');
+  // Set state value
+  const stateEl=document.getElementById('rs-'+i);
+  if(stateEl) stateEl.textContent=b2h(r.stateOut,16);
+}
+
+function finishPipeline(result,pt,key){
+  // mark last as done
+  const last=document.getElementById('ri-'+(allRoundData.length-1));
+  if(last){last.classList.remove('active');last.classList.add('done');}
+
+  document.getElementById('masterFill').style.width='100%';
+
+  const dot=document.getElementById('statusDot');
+  dot.classList.remove('running');
+  dot.classList.add('done');
+  setStatus('Pipeline complete — all 31 rounds executed + whitening','32 / 32');
+
+  // Show output
+  const finalHex=b2h(result,16);
+  document.getElementById('outputVal').textContent=finalHex;
+  const inputNum=h2b(pt);
+  const hd=hamming(inputNum,result);
+  document.getElementById('stDiff').textContent=hd;
+  document.getElementById('outMeta1').textContent='Input: '+pt;
+  document.getElementById('outMeta2').textContent='Key: '+key;
+  document.getElementById('outMeta3').textContent='Hamming distance: '+hd+' bits changed';
+  document.getElementById('outputSection').classList.add('show');
+  document.getElementById('inputBlock').classList.remove('active');
+}
+
+function setStatus(text,counter=''){
+  document.getElementById('statusText').textContent=text;
+  document.getElementById('statusCounter').textContent=counter;
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,Math.max(0,ms)));}
+
+function copyOut(){
+  const v=document.getElementById('outputVal').textContent;
+  navigator.clipboard.writeText(v).then(()=>{
+    const b=document.querySelector('.copy-btn');
+    b.textContent='[ copied! ]';
+    b.style.color='var(--green)';
+    setTimeout(()=>{b.textContent='[ copy to clipboard ]';b.style.color='';},1500);
+  });
+}
+
+// Prefill
+window.onload=()=>{
+  document.getElementById('ptIn').value='0000000000000000';
+  document.getElementById('keyIn').value='00000000000000000000';
+};
+</script>
+</body>
+</html>
