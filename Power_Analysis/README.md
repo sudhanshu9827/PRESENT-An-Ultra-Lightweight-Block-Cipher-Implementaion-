@@ -31,15 +31,46 @@ i>  Copy the simpleserial-present folder in /chipwhisperer/firmware/mcu/
 ii> Put the present_power_anlysis_final.ipynb inside /chipwhisperer/jupyter/courses/fault101/ 
 
 ### Setup:
+ <table>
+<tr>
+
+<td width="50%">  
 1 #connect the Chipwhisperer and the target board
-  i> connect measure pin to the target boards vout pin
-  <p align="center"> <img src="images/setup.jpeg" width="700"> </p> <p align="center"
+
+i> connect measure pin to the target boards vout pin
+
+</td>
+
+<td width="50%">
+
+<p align="center">
+  <img src="../Result/setup.jpeg" width="250">
+</p>
+
+</td>
+
+</tr>
+</table>
 2 #Open terminal
+
   i>  activate the env (source ~/.cwvenv/bin/activate)
+  
   ii> cd ~/chipwhisperer/firmware/mcu/simpleserial-present
+  
   iii>make PLATFORM=CW308_STM32F3 
+  
   this makes .hex and .bin file for the flashing the target board
+  
   iv> cd ../../../
+  
 #Open jupythe notebook in the chipwhisperer directory
+
   v>  Go to the /jupyter/courses/fault101 and open present_power_anlysis_final.ipynb
+  
   Vi> run the code
+<p align="center">
+  <img src="../Result/trace_visualization.png" width="700">
+</p>
+<p align="center">
+  <img src="../Result/nibble_recovery.png" width="700">
+</p>
