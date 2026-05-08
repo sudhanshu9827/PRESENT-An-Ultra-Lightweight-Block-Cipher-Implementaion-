@@ -1,22 +1,35 @@
 ### Step 1:
 You need the Chipwhisperer repository to use the device.
 Visit https://chipwhisperer.readthedocs.io/en/latest/linux-install.html if any issue arises.
+
 sudo apt update && sudo apt upgrade
-sudo apt update && sudo apt upgrade
-sudo apt install make git avr-libc gcc-avr \
-gcc-arm-none-eabi libusb-1.0-0-dev usbutils python3 python3-venv python3-dev
+
+sudo apt install make git avr-libc gcc-avr gcc-arm-none-eabi libusb-1.0-0-dev usbutils python3 python3-venv python3-dev
+
 cd ~/
+
 git clone https://github.com/newaetech/chipwhisperer
+
 cd chipwhisperer
+
 python3 -m venv ~/.cwvenv
+
 source ~/.cwvenv/bin/activate
+
 sudo cp 50-newae.rules /etc/udev/rules.d/50-newae.rules
+
 sudo udevadm control --reload-rules
+
 sudo groupadd -fr chipwhisperer # new systemd versions require system accounts for udev
+
 sudo usermod -aG chipwhisperer $USER
+
 sudo usermod -aG plugdev $USER
+
 git submodule update --init jupyter
+
 python -m pip install -e .
+
 python -m pip install -r jupyter/requirements.txt
 
 ### Step 2:
