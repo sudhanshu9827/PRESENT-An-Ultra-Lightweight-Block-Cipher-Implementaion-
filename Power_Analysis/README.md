@@ -86,20 +86,34 @@ i> connect measure pin to the target boards vout pin
   
   Vii> run the code
 <p align="center">
-  <img src="../Result/trace_visualization.png" width="700">
+  <img src="../Result/trace_visualization.png" width="600">
 </p>
 
 ### CPA ATTACK RESULT
 <p align="center">
-  <img src="../Result/nibble_recovery.png" width="700">
+  <img src="../Result/nibble_recovery.png" width="500">
 </p>
 
 ### DPA ATTACK RESULT
 <p align="center">
-  <img src="../Result/DPA.png" width="700">
+  <img src="../Result/DPA.png" width="500">
 </p>
 
 ### BOTH ATTACK PASS 
+<table>
+<tr>
+<td width="50%">
 <p align="center">
-  <img src="../Result/no_trace.png" width="700">
+  <img src="../Result/both.png" width="300">
 </p>
+ </td>
+</tr>
+ <tr>
+<td width="50%">
+<p align="center">
+  <img src="../Result/no_trace.png" width="300">
+</p>
+</td>
+</tr>
+</table>
+
