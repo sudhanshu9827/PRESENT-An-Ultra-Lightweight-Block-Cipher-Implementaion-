@@ -1,84 +1,45 @@
+### Step 1:
+You need the Chipwhisperer repository to use the device.
+Visit https://chipwhisperer.readthedocs.io/en/latest/linux-install.html if any issue arises.
+sudo apt update && sudo apt upgrade
+sudo apt update && sudo apt upgrade
+sudo apt install make git avr-libc gcc-avr \
+gcc-arm-none-eabi libusb-1.0-0-dev usbutils python3 python3-venv python3-dev
+cd ~/
+git clone https://github.com/newaetech/chipwhisperer
+cd chipwhisperer
+python3 -m venv ~/.cwvenv
+source ~/.cwvenv/bin/activate
+sudo cp 50-newae.rules /etc/udev/rules.d/50-newae.rules
+sudo udevadm control --reload-rules
+sudo groupadd -fr chipwhisperer # new systemd versions require system accounts for udev
+sudo usermod -aG chipwhisperer $USER
+sudo usermod -aG plugdev $USER
+git submodule update --init jupyter
+python -m pip install -e .
+python -m pip install -r jupyter/requirements.txt
 
-## Courses
+### Step 2:
+Install jupyter notebook
+source ~/.cwvenv/bin/activate
+cd ~/chipwhisperer
+jupyter notebook
+[The experiment will be in Jupyter notebook], now you the chipwhisperer folder with you.
 
-### SCA101: Introduction to Power Analysis Attacks
+### Step 3:
+i>  Copy the simpleserial-present folder in /chipwhisperer/firmware/mcu/ 
+ii> Put the present_power_anlysis_final.ipynb inside /chipwhisperer/jupyter/courses/fault101/ 
 
-* **Lab 2-1A**: Instruction Power Differences
-* **Lab 2-1B**: Power Analysis for Password Bypass
-* **Lab 3-1**: Large hamming Weight Swings
-* **Lab 3-2**: Recovering an AES Key from a Single Bit
-* **Lab 3-3**: Recovery an AES key from a Power measurement (DPA)
-* **Lab 4-1**: Showing the Hamming Weight relationship of data & power.
-* **Lab 4-2**: Correlation Power Analysis
-* **Lab 4-3**: Using ChipWhisperer for CPA Attacks
-* **Lab 5-1**: ChipWhisperer CPA Attacks in Practice
-* **Lab 6-4**: Triggering on UART
-
-### SCA201: Power Analysis Attacks on AES Implementations
-* **Lab 1-1A**: Resynchornizing Traces with Sum of Absolute Differences
-* **Lab 1-1B**: Resynchornizing Traces with Dynamtic Time Warp
-* **Lab 2-1**: CPA on a 32-bit AES Implementation
-* **Lab 2-2**: CPA on a Hardware AES Implementation: Last-Round State
-* **Lab 2-3**: CPA on a Hardware AES Implementation: Mix-Columns
-* **Lab 3-1A**: AES-256 Bootloader Attack
-* **Lab 3-B**: AES-256 Bootloader with Reverse Engineering using Power Analysis
-
-### SCA202: Power Analysis on Asymmetric Implementations
-* Power Analysis on 8-bit RSA Implementation (OLD VERSION IN REPO NOW)
-* Power Analysis on MBED-TLS RSA Implementation (NOT IN REPO YET)
-* Power Analysis on software ECC Implementation (NOT IN REPO YET)
-
-### SCA203: Leakage Assesement
-**NOTE: These labs are not here yet - but material is in the repo for some of this in sca203 folder**
-* Introduction to Leakage Assessment
-* Non-Specific TVLA on AES
-* Specific TVLA on AES
-* TVLA for Reverse Engineering
-* TVLA on ECC
-
-### SCA204: Power Analysis on Hardware ECC
-* **Part 1**: Introduction to Hardware ECC Attacks
-* **Part 2**: Improving the Attack
-* **Part 3**: Countermeasures
-* **Part 4**: More Countermeasures and Unintended Consequences
-* **Part 5**: TVLA
-
-### SCA205: Power Analysis on Software ECC
-* **Part 1**: Breaking software ECC with TraceWhisperer
-* **Part 2**: Breaking software ECC without TraceWhisperer
-* **Part 3**: Breaking software ECC with TraceWhisperer *and* SAD
-
-### FAULT101
-* **Lab 1-1**: Introduction to Clock Glitching
-* **Lab 1-2**: Clock Glitching to Bypass Password
-* **Lab 1-3**: Clock Glitching to Dump Memory
-* **Lab 1-4**: Authentication Bypass on AES Bootloader
-* **Lab 2-1**: Introduction to Voltage Glitching
-* **Lab 2-2**: Voltage Glitching to Bypass Password
-* **Lab 2-3**: Voltage Glitching to Dump Memory
-
-### FAULT201
-* **Lab 1-1A**: Introduction to AES Fault Attacks
-* **Lab 1-1B**: AES Loop Skip Fault Attack
-* **Lab 1-2**: 1.5 Round AES Fault Attack
-* **Lab 1-3A**: DFA Attack Against Final MixColumns
-* **Lab 1-3B**: DFA Attack on AES
-* **Lab 2-1**: Fault Attack on RSA
-
-
-## Naming Notes
-
-### Prefix
-
-sca: Side Channel (Power) Analysis courses
-fault: Fault Injection (Glitching) courses
-
-### Numbering
-
-* 1xx: Fundamentals. A 101 course is a prerequisite for all higher course.
-* 2xx: Advanced topics. Dependencies noted in the labs/courses themselves.
-* appx: Applications. Dependencies noted in the labs/courses themselves.
-
-### Getting Started
-
-We recommend going through sca101 before fault101, at least Lab 1_X and Lab 2_X. This will introduce you to the required ChipWhisperer software.
+### Setup:
+1 #connect the Chipwhisperer and the target board
+  i> connect measure pin to the target boards vout pin
+  <p align="center"> <img src="images/setup.jpeg" width="700"> </p> <p align="center"
+2 #Open terminal
+  i>  activate the env (source ~/.cwvenv/bin/activate)
+  ii> cd ~/chipwhisperer/firmware/mcu/simpleserial-present
+  iii>make PLATFORM=CW308_STM32F3 
+  this makes .hex and .bin file for the flashing the target board
+  iv> cd ../../../
+#Open jupythe notebook in the chipwhisperer directory
+  v>  Go to the /jupyter/courses/fault101 and open present_power_anlysis_final.ipynb
+  Vi> run the code
