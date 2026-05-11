@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>PRESENT — Linear Cryptanalysis Animation</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0a0e1a; color: #e0e6ff; font-family: 'Courier New', monospace; min-height: 100vh; padding: 20px; }
+h1 { text-align: center; color: #76ff03; font-size: 1.4em; margin-bottom: 6px; text-shadow: 0 0 20px #76ff0388; }
+.subtitle { text-align: center; color: #7986cb; font-size: 0.85em; margin-bottom: 20px; }
+
+/* ── Layout: exact mirror of differential ── */
+.cipher-grid {
+  display: grid;
+  grid-template-columns: 1fr 180px 1fr;
+  gap: 0 10px;
+  max-width: 900px;
+  margin: 0 auto 24px;
+}
+.col-hdr { text-align: center; padding: 6px; font-size: 0.9em; font-weight: bold; border-radius: 6px; }
+.hdr-input { background: #0d3358; color: #00b8ff; border: 1px solid #00b8ff55; }
+.hdr-mask  { background: #1a1a00; color: #76ff03; border: 1px solid #76ff0355; }
+.hdr-sbox  { background: #1a0030; color: #ea80fc; border: 1px solid #e040fb55; }
+
+/* ── State boxes (exact same as differential) ── */
+.state-box {
+  margin: 4px 0; padding: 8px 12px; border-radius: 8px; font-size: 0.82em;
+  text-align: center; transition: all 0.5s ease; opacity: 0; transform: translateY(10px);
+}
+.state-box.visible { opacity: 1; transform: translateY(0); }
+.box-input { background: #0d2a40; border: 1px solid #00b8ff; color: #00e5ff; }
+.box-mask  { background: #1a1a00; border: 1px solid #76ff03; color: #76ff03; text-align: center; }
+.box-sbox  { background: #1a0030; border: 1px solid #e040fb; color: #ea80fc; }
+
+/* ── Operation blocks (exact same) ── */
+.op-block { margin: 2px 0; padding: 5px; border-radius: 6px; text-align: center; font-size: 0.78em; font-weight: bold; opacity: 0; transition: all 0.4s ease; }
+.op-block.visible { opacity: 1; }
+.op-addkey { background: #102820; border: 1px solid #00c853; color: #69f0ae; }
+.op-sbox   { background: #201020; border: 1px solid #e040fb; color: #ea80fc; }
+.op-perm   { background: #102020; border: 1px solid #00bcd4; color: #80deea; }
+.op-center { background: transparent; display: flex; align-items: center; justify-content: center; font-size: 1.1em; }
+
+/* ── Nibble visualizer (exact same base, extra classes added) ── */
+.nibbles { display: flex; gap: 4px; justify-content: center; margin: 2px 0; }
+.nib {
+  width: 36px; height: 28px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.85em; font-weight: bold; transition: all 0.6s ease; border: 1px solid #333;
+}
+.nib.zero    { background: #1a1a2e; color: #444; }
+.nib.nonzero { background: #1e3a5f; color: #00e5ff; border-color: #00b8ff; }
+.nib.p2color { background: #1a0030; color: #ea80fc; border-color: #e040fb; }
+/* Active mask: glowing green (replaces active-diff orange of differential) */
+.nib.mask-active { background: #1a3a00 !important; border-color: #76ff03 !important; color: #76ff03 !important;
+                   box-shadow: 0 0 10px #76ff0388; animation: maskpulse 1s infinite; }
+/* S-box output nibble: purple glow */
+.nib.sbox-out { background: #200040 !important; border-color: #e040fb !important; color: #ea80fc !important;
+                box-shadow: 0 0 10px #e040fb88; animation: sboxpulse 1s infinite; }
+/* Equation holds: bright green flash */
+.nib.eq-holds { background: #003300 !important; border-color: #00e676 !important; color: #00e676 !important;
+                box-shadow: 0 0 14px #00e67699; }
+/* Equation fails */
+.nib.eq-fails { background: #330000 !important; border-color: #ff1744 !important; color: #ff1744 !important; }
+
+@keyframes maskpulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.10)} }
+@keyframes sboxpulse  { 0%,100%{transform:scale(1);box-shadow:0 0 8px #e040fb55} 50%{transform:scale(1.08);box-shadow:0 0 16px #e040fbbb} }
+
+/* ── S-box detail panel ── */
+.sbox-panel {
+  max-width: 900px; margin: 0 auto 20px; background: #100020; border: 1px solid #e040fb55;
+  border-radius: 12px; padding: 14px; opacity: 0; transition: all 0.5s ease; transform: translateY(8px);
+}
+.sbox-panel.visible { opacity: 1; transform: translateY(0); }
+.sbox-panel-title { color: #ea80fc; font-size: 0.88em; font-weight: bold; margin-bottom: 10px; text-align: center; }
+.sbox-io-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 600px; margin: 0 auto;
+}
+.sbox-io-card {
+  background: #0d0018; border: 1px solid #333; border-radius: 8px; padding: 8px; text-align: center;
+  font-size: 0.78em; opacity: 0; transition: all 0.4s ease; transform: scale(0.9);
+}
+.sbox-io-card.visible { opacity: 1; transform: scale(1); }
+.sbox-io-card.active-card {
+  border-color: #76ff03; background: #0a1a00; box-shadow: 0 0 14px #76ff0355;
+}
+.sbox-io-card.output-card {
+  border-color: #e040fb; background: #150025; box-shadow: 0 0 14px #e040fb55;
+}
+.sio-label { color: #607d8b; font-size: 0.75em; margin-bottom: 3px; }
+.sio-val   { font-size: 1.05em; font-weight: bold; letter-spacing: 2px; }
+.sio-arrow { color: #555; font-size: 0.9em; margin: 2px 0; }
+.sio-bits  { font-size: 0.7em; color: #607d8b; margin-top: 2px; font-family: monospace; letter-spacing: 1px; }
+.mask-bit-1 { color: #76ff03; font-weight: bold; }
+.mask-bit-0 { color: #333; }
+
+/* ── LAT section ── */
+.lat-section {
+  max-width: 900px; margin: 0 auto 20px; background: #0f0b1e;
+  border: 1px solid #7c4dff55; border-radius: 12px; padding: 14px;
+  opacity: 0; transition: all 0.5s; transform: translateY(8px);
+}
+.lat-section.visible { opacity: 1; transform: translateY(0); }
+.lat-title { color: #b388ff; font-size: 0.9em; margin-bottom: 8px; text-align: center; font-weight: bold; }
+.lat-wrap  { overflow-x: auto; margin-bottom: 8px; }
+.lat-table { border-collapse: collapse; margin: 0 auto; font-size: 0.68em; }
+.lat-table th, .lat-table td { width: 26px; height: 22px; text-align: center; border: 1px solid #1a1a2e; }
+.lat-table th   { background: #1a1230; color: #9e9e9e; font-weight: bold; }
+.lat-table td   { background: #0f0b1e; color: #444; opacity: 0; transition: opacity 0.07s; }
+.lat-table td.hp{ background: #1a3a00; color: #76ff03; font-weight: bold; border-color: #76ff0355; }
+.lat-table td.hn{ background: #3a001a; color: #ff4081; font-weight: bold; border-color: #ff408155; }
+.lat-table td.zm{ background: #0a0a14; color: #2a2a3a; }
+.lat-table td.md{ background: #1a1a2e; color: #5c6bc0; }
+.lat-table td.sel{ outline: 3px solid #76ff03; outline-offset: -2px; box-shadow: 0 0 10px #76ff0388; }
+
+/* ── Trail section ── */
+.trail-section {
+  max-width: 900px; margin: 0 auto 20px; background: #0f1400;
+  border: 1px solid #76ff0333; border-radius: 12px; padding: 14px;
+  opacity: 0; transition: all 0.5s; transform: translateY(8px);
+}
+.trail-section.visible { opacity: 1; transform: translateY(0); }
+.trail-title { color: #ccff90; font-size: 0.9em; margin-bottom: 8px; text-align: center; font-weight: bold; }
+.trail-row {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px;
+  border-radius: 8px; margin-bottom: 5px;
+  opacity: 0; transform: translateX(-12px); transition: all 0.5s;
+}
+.trail-row.visible { opacity: 1; transform: translateX(0); }
+.trail-best { border: 2px solid #76ff03; background: #0d2200; }
+.trail-norm { border: 1px solid #33691e; background: #111800; }
+.tr-n    { color: #aed581; font-weight: bold; min-width: 56px; font-size: 0.82em; padding-top: 2px; }
+.tr-body { flex: 1; font-size: 0.8em; line-height: 1.9; }
+.tr-a    { color: #40c4ff; font-weight: bold; letter-spacing: 2px; }
+.tr-b    { color: #ea80fc; font-weight: bold; letter-spacing: 2px; }
+.tr-bp   { color: #76ff03; font-weight: bold; }
+.tr-bn   { color: #ff4081; font-weight: bold; }
+.tr-ac   { color: #ffd600; font-weight: bold; }
+.tr-mask { color: #455a64; font-size: 0.72em; font-family: monospace; word-break: break-all; margin-top: 2px; }
+.trail-arrow { text-align: center; color: #2a3a00; font-size: 1.4em; margin: 1px 0; opacity: 0; transition: opacity 0.4s; }
+.trail-arrow.visible { opacity: 1; }
+.best-badge {
+  background: #0d2200; border: 2px solid #76ff03; border-radius: 10px;
+  padding: 14px; text-align: center; margin-top: 8px;
+  opacity: 0; transform: scale(0.95); transition: all 0.5s;
+}
+.best-badge.visible { opacity: 1; transform: scale(1); }
+
+/* ── Attack section (exact same as differential) ── */
+.attack-section {
+  max-width: 900px; margin: 0 auto 24px; background: #0d1a0d; border: 1px solid #00c85355;
+  border-radius: 12px; padding: 16px;
+}
+.attack-title { color: #69f0ae; font-size: 1em; margin-bottom: 12px; text-align: center; }
+.guess-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.guess-card {
+  background: #121212; border: 1px solid #333; border-radius: 8px; padding: 8px; text-align: center;
+  font-size: 0.78em; transition: all 0.5s ease; opacity: 0;
+}
+.guess-card.visible { opacity: 1; }
+.guess-card.winner { background: #0d2a0d; border-color: #00e676; box-shadow: 0 0 16px #00e67666; }
+.guess-card.loser  { background: #1a0a0a; border-color: #d32f2f; opacity: 0.5; }
+.guess-key   { color: #b39ddb; font-size: 0.9em; }
+.guess-score { font-size: 1.1em; font-weight: bold; }
+.score-bar  { height: 6px; background: #333; border-radius: 3px; margin-top: 4px; overflow: hidden; }
+.score-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+/* ── Controls (exact same as differential) ── */
+.controls { text-align: center; margin-bottom: 18px; }
+button {
+  background: #1a237e; border: 1px solid #3949ab; color: #9fa8da; padding: 8px 20px; border-radius: 6px;
+  cursor: pointer; font-family: monospace; font-size: 0.9em; margin: 4px; transition: all 0.2s;
+}
+button:hover { background: #283593; color: #fff; border-color: #5c6bc0; }
+button.active-btn { background: #00695c; border-color: #00bfa5; color: #a7ffeb; }
+
+.step-select { text-align: center; margin-bottom: 15px; }
+.step-select span { font-size: 0.88em; color: #7986cb; margin-right: 6px; }
+.step-select button { background: #37474f; border-color: #263238; color: #eceff1; }
+.step-select button.active-btn { background: #1b5000; border-color: #76ff03; color: #ccff90; box-shadow: 0 0 8px #76ff0355; }
+
+.explain {
+  max-width: 900px; margin: 0 auto 16px; background: #0d1525; border-left: 3px solid #76ff03;
+  border-radius: 0 8px 8px 0; padding: 12px 16px; font-size: 0.85em; line-height: 1.7; min-height: 56px; transition: all 0.4s;
+}
+.explain .step-num { color: #ffd600; font-weight: bold; }
+.explain .mask-val { color: #76ff03; font-weight: bold; }
+.explain .sbox-val { color: #ea80fc; font-weight: bold; }
+.explain .bias-val { color: #ff9800; font-weight: bold; }
+.explain .ok-val   { color: #69f0ae; font-weight: bold; }
+.explain .eq       { font-family: monospace; background: #0d1a0d; padding: 1px 6px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+  <body>
+
+<div style="
+  max-width:900px;
+  margin:0 auto 18px;
+  padding:10px 16px;
+  border-radius:12px;
+  background:linear-gradient(
+    90deg,
+    rgba(118,255,3,0.10),
+    rgba(0,229,255,0.06)
+  );
+  border:1px solid rgba(118,255,3,0.25);
+  box-shadow:
+    0 0 18px rgba(118,255,3,0.08),
+    inset 0 0 12px rgba(255,255,255,0.02);
+  text-align:center;
+">
+
+  <span style="
+    color:#76ff03;
+    font-size:1rem;
+    font-weight:bold;
+    letter-spacing:0.22em;
+    font-family:'Courier New', monospace;
+    text-shadow:0 0 12px rgba(118,255,3,0.55);
+  ">
+    CSL505 / CS553
+  </span>
+
+</div>
+
+<h1>🔑 PRESENT — Linear Cryptanalysis (Value Flow)</h1>
+<p class="subtitle">64-bit block · Real PRESENT P-layer · Watch how inputs flow through S-boxes and masks</p>
+
+<!-- Step selector (same style as differential's round-select) -->
+<div class="step-select">
+  <span>Select Step:</span>
+  <button onclick="jumpTo(1)" id="jp1" class="active-btn">Step 1: Masks</button>
+  <button onclick="jumpTo(2)" id="jp2">Step 2: LAT</button>
+  <button onclick="jumpTo(3)" id="jp3">Step 3: SPN</button>
+  <button onclick="jumpTo(4)" id="jp4">Step 4: Trails</button>
+  <button onclick="jumpTo(5)" id="jp5">Step 5: Key Recovery</button>
+</div>
+
+<!-- Controls (identical to differential) -->
+<div class="controls">
+  <button onclick="startAnim()" id="startBtn">▶ Start Animation</button>
+  <button onclick="resetAnim()">↺ Reset</button>
+  <button onclick="setSpeed(1)" id="s1">Speed 1×</button>
+  <button onclick="setSpeed(2)" id="s2">Speed 2×</button>
+</div>
+
+<!-- Explanation panel (exact same as differential) -->
+<div class="explain" id="explainBox">
+  Select a step above and press <b>▶ Start Animation</b>.
+</div>
+
+<!-- Main 3-col cipher grid (same layout as differential) -->
+<div class="cipher-grid" id="cipherGrid">
+  <div class="col-hdr hdr-input" id="hdrL">Input x</div>
+  <div class="col-hdr hdr-mask"  id="hdrM">Mask &amp; Equation</div>
+  <div class="col-hdr hdr-sbox"  id="hdrR">S-box Output S(x)</div>
+</div>
+
+<!-- S-box detail panel (new: shows input→output per nibble) -->
+<div class="sbox-panel" id="sboxPanel">
+  <div class="sbox-panel-title" id="sboxPanelTitle">S-box value flow</div>
+  <div class="sbox-io-grid" id="sboxIoGrid"></div>
+</div>
+
+<!-- LAT (Step 2) -->
+<div class="lat-section" id="latSection" style="display:none">
+  <div class="lat-title">📊 Linear Approximation Table (LAT) — PRESENT S-box &nbsp; bias = count − 8</div>
+  <div class="lat-wrap"><table class="lat-table" id="latTable"></table></div>
+</div>
+
+<!-- Trail (Step 4) -->
+<div class="trail-section" id="trailSection" style="display:none">
+  <div class="trail-title">🔗 Sparse Trail Search — Real 64-bit PRESENT P-layer</div>
+  <div id="trailRows"></div>
+</div>
+
+<!-- Attack section (exact same as differential) -->
+<div class="attack-section" id="attackSection" style="display:none">
+  <div class="attack-title" id="attackTitle">🎯 Key Recovery</div>
+  <div class="guess-grid" id="guessGrid"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  CORE CRYPTO — exact PRESENT S-box + real 64-bit P-box
+// ═══════════════════════════════════════════════════════════════
+const SBOX     = [0xC,0x5,0x6,0xB,0x9,0x0,0xA,0xD,0x3,0xE,0xF,0x8,0x4,0x7,0x1,0x2];
+const SBOX_INV = SBOX.map((_,i,a)=>a.indexOf(i));
+// SBOX names for display
+const SBOX_HEX = ['C','5','6','B','9','0','A','D','3','E','F','8','4','7','1','2'];
+
+// Real PRESENT P-box  P(i) = 16i mod 63, P(63)=63
+const PBOX64 = Array.from({length:64},(_,i)=>i===63?63:(16*i)%63);
+
+// Round keys from step3 output [hi32, lo32]
+const RK = [
+  [0x3A94D63F,0x2B1C7890], // K1
+  [0x56789ABC,0xDEF01234], // K2
+  [0x13579BDF,0x2468ACE0], // K3
+  [0x0F1E2D3C,0x4B5A6978]  // K4
+];
+const REAL_SUBKEY = RK[3][1]&0xF; // 0x8 = 1000
+
+function xor64(a,b){ return [(a[0]^b[0])>>>0,(a[1]^b[1])>>>0]; }
+function applySbox64(s){
+  let rh=0,rl=0;
+  for(let i=0;i<8;i++) rl|=SBOX[(s[1]>>(i*4))&0xF]<<(i*4);
+  for(let i=0;i<8;i++) rh|=SBOX[(s[0]>>(i*4))&0xF]<<(i*4);
+  return [rh>>>0,rl>>>0];
+}
+function applyPerm64(s){
+  let rh=0,rl=0;
+  for(let i=0;i<64;i++){
+    const bit=i<32?(s[1]>>i)&1:(s[0]>>(i-32))&1;
+    const d=PBOX64[i];
+    if(d<32) rl|=bit<<d; else rh|=bit<<(d-32);
+  }
+  return [rh>>>0,rl>>>0];
+}
+function encrypt64(pt,rkeys){
+  let s=[pt[0],pt[1]];
+  for(let r=0;r<3;r++){ s=xor64(s,rkeys[r]); s=applySbox64(s); s=applyPerm64(s); }
+  return xor64(s,rkeys[3]);
+}
+
+// 4-bit utils
+function par4(x){ let c=0; while(x){c^=x&1;x>>>=1;} return c; }
+function lm(mask,val){ return par4(mask&val); }
+function fmt4(v){ return v.toString(2).padStart(4,'0'); }
+function fmtH4(v){ return v.toString(16).toUpperCase(); }
+
+// ── LAT (hardcoded from step2 output) ──
+const LAT = [
+  [ 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  [ 0, 0, 0, 0, 0,-4, 0,-4, 0, 0, 0, 0, 0,-4, 0, 4],
+  [ 0, 0, 2, 2,-2,-2, 0, 0, 2,-2, 0, 4, 0, 4,-2, 2],
+  [ 0, 0, 2, 2, 2,-2,-4, 0,-2, 2,-4, 0, 0, 0,-2,-2],
+  [ 0, 0,-2, 2,-2,-2, 0, 4,-2,-2, 0,-4, 0, 0,-2, 2],
+  [ 0, 0,-2, 2,-2, 2, 0, 0, 2, 2,-4, 0, 4, 0, 2, 2],
+  [ 0, 0, 0,-4, 0, 0,-4, 0, 0,-4, 0, 0, 4, 0, 0, 0],
+  [ 0, 0, 0, 4, 4, 0, 0, 0, 0,-4, 0, 0, 0, 0, 4, 0],
+  [ 0, 0, 2,-2, 0, 0,-2, 2,-2, 2, 0, 0,-2, 2, 4, 4],
+  [ 0, 4,-2,-2, 0, 0, 2,-2,-2,-2,-4, 0,-2, 2, 0, 0],
+  [ 0, 0, 4, 0, 2, 2, 2,-2, 0, 0, 0,-4, 2, 2,-2, 2],
+  [ 0,-4, 0, 0,-2,-2, 2,-2,-4, 0, 0, 0, 2, 2, 2,-2],
+  [ 0, 0, 0, 0,-2,-2,-2,-2, 4, 0, 0,-4,-2, 2, 2,-2],
+  [ 0, 4, 4, 0,-2,-2, 2, 2, 0, 0, 0, 0, 2,-2, 2,-2],
+  [ 0, 0, 2, 2,-4, 4,-2,-2,-2,-2, 0, 0,-2,-2, 0, 0],
+  [ 0, 4,-2, 2, 0, 0,-2,-2,-2, 2, 4, 0, 2, 2, 0, 0],
+];
+
+// ── Trail data (from step4 output exactly) ──
+const TRAILS = [
+  {n:1,  a:'0111',b:'0100',bias: 4,active:1,best:true,
+   mask:'0000000000000000000000000000000100000000000000000000000000000000'},
+  {n:2,  a:'0001',b:'0101',bias:-4,active:2,best:false,
+   mask:'0000000000000000000000000000000100000000000000000000000000000001'},
+  {n:3,  a:'0011',b:'0110',bias:-4,active:2,best:false,
+   mask:'0000000000000000000000000000000100000000000000010000000000000000'},
+  {n:4,  a:'0011',b:'1010',bias:-4,active:2,best:false,
+   mask:'0000000000000001000000000000000000000000000000010000000000000000'},
+  {n:5,  a:'0101',b:'1010',bias:-4,active:2,best:false,
+   mask:'0000000000000001000000000000000000000000000000010000000000000000'},
+  {n:6,  a:'0101',b:'1100',bias: 4,active:2,best:false,
+   mask:'0000000000000001000000000000000100000000000000000000000000000000'},
+  {n:7,  a:'0110',b:'0011',bias:-4,active:2,best:false,
+   mask:'0000000000000000000000000000000000000000000000010000000000000001'},
+  {n:8,  a:'0110',b:'0110',bias:-4,active:2,best:false,
+   mask:'0000000000000000000000000000000100000000000000010000000000000000'},
+  {n:9,  a:'0110',b:'1001',bias:-4,active:2,best:false,
+   mask:'0000000000000001000000000000000000000000000000000000000000000001'},
+  {n:10, a:'0110',b:'1100',bias: 4,active:2,best:false,
+   mask:'0000000000000001000000000000000100000000000000000000000000000000'},
+];
+
+// ── Key ranking (from step5 output exactly) ──
+const KEY_RANKS = [
+  {key:'1000',bias:0.00115000,prob:0.49885000,rank:1, real:true},
+  {key:'0011',bias:0.00114000,prob:0.50114000,rank:2, real:false},
+  {key:'0100',bias:0.00088500,prob:0.50088500,rank:3, real:false},
+  {key:'1011',bias:0.00083000,prob:0.49917000,rank:4, real:false},
+  {key:'0111',bias:0.00064500,prob:0.50064500,rank:5, real:false},
+  {key:'0001',bias:0.00058500,prob:0.49941500,rank:6, real:false},
+  {key:'1101',bias:0.00044000,prob:0.49956000,rank:7, real:false},
+  {key:'1110',bias:0.00044000,prob:0.50044000,rank:8, real:false},
+  {key:'0010',bias:0.00039500,prob:0.49960500,rank:9, real:false},
+  {key:'0110',bias:0.00039000,prob:0.50039000,rank:10,real:false},
+  {key:'1100',bias:0.00030500,prob:0.49969500,rank:11,real:false},
+  {key:'0000',bias:0.00026000,prob:0.50026000,rank:12,real:false},
+  {key:'1010',bias:0.00012500,prob:0.49987500,rank:13,real:false},
+  {key:'1001',bias:0.00011500,prob:0.50011500,rank:14,real:false},
+  {key:'1111',bias:0.00011500,prob:0.49988500,rank:15,real:false},
+  {key:'0101',bias:0.00007000,prob:0.50007000,rank:16,real:false},
+];
+
+// ═══════════════════════════════════════════════════════════════
+//  STEP DATA  (same pattern as differential's prepareData)
+// ═══════════════════════════════════════════════════════════════
+let phase=1, statesList=[], stepExps=[], stepIds=[], animTimer=null, step=0, speedMs=900;
+
+function addStep(exp, ids){ stepExps.push(exp); stepIds.push(ids||[]); }
+
+// ── DATA BUILDERS ────────────────────────────────────────────────
+
+// Step 1: three tests from step1 output + sbox value flow
+function prepData1(){
+  statesList=[];
+
+  // ── Test 1: parity(1011) = 1 ──
+  statesList.push({type:'parity', input:0b1011, label:'parity(1011)'});
+  addStep(`<span class="step-num">Step 1.1 — Parity Function</span><br>
+    Input = <b>1011</b> &nbsp;→&nbsp; 1 ⊕ 0 ⊕ 1 ⊕ 1 = <span class="ok-val">1</span> &nbsp; (3 ones, odd → parity = 1)<br>
+    parity(x) = XOR of all bits. This is the fundamental operation behind every linear mask.`,
+    ['op1_t1_L','op1_t1_C','op1_t1_R','sb1_t1_L','sb1_t1_M','sb1_t1_R']);
+
+  // ── Test 2: α=1010, x=1101, α·x=1 ──
+  statesList.push({type:'lm', alpha:0b1010, x:0b1101, label:'α·x'});
+  addStep(`<span class="step-num">Step 1.2 — Linear Mask / Scalar Product</span><br>
+    α = <span class="mask-val">1010</span> &nbsp; x = <b>1101</b><br>
+    α AND x = <b>1000</b> &nbsp;→&nbsp; parity(1000) = <span class="ok-val">1</span> &nbsp; ∴ α · x = <span class="ok-val">1</span><br>
+    Only the bits where α=1 (highlighted) are selected. Their XOR gives the dot product.`,
+    ['op1_t2_L','op1_t2_C','op1_t2_R','sb1_t2_L','sb1_t2_M','sb1_t2_R','sboxPanel']);
+
+  // ── Test 3: α=0001, β=0101, x=0110, S(x)=1010, both=0 ──
+  statesList.push({type:'approx', alpha:0b0001, beta:0b0101, x:0b0110, sx:SBOX[0b0110], label:'α·x = β·S(x)'});
+  addStep(`<span class="step-num">Step 1.3 — Linear Approximation Equation</span><br>
+    α=<span class="mask-val">0001</span> &nbsp; β=<span class="sbox-val">0101</span> &nbsp; x=<b>0110</b> &nbsp; <span class="sbox-val">S(x)=1010</span><br>
+    Left: α·x = parity(0001 AND 0110) = parity(0000) = <span class="mask-val">0</span><br>
+    Right: β·S(x) = parity(0101 AND 1010) = parity(0000) = <span class="mask-val">0</span><br>
+    <span class="ok-val">✅ Equation Satisfied: 0 = 0.</span> &nbsp; S-box input <b>0110</b> → output <b>1010</b> preserves this equation.`,
+    ['op1_t3_L','op1_t3_C','op1_t3_R','sb1_t3_L','sb1_t3_M','sb1_t3_R','sboxPanel']);
+
+  // ── Full survey: count for α=0001, β=0101 ──
+  statesList.push({type:'survey', alpha:0b0001, beta:0b0101, label:'All 16 inputs'});
+  addStep(`<span class="step-num">Step 1.4 — Survey All 16 Inputs → Bias</span><br>
+    Testing α=<span class="mask-val">0001</span>, β=<span class="sbox-val">0101</span> for all x=0…15.<br>
+    Each card below shows: input x → S-box output S(x) → does equation hold?<br>
+    Count = <span class="bias-val">4</span> (holds for 4 of 16 inputs) → bias = 4−8 = <span class="bias-val">−4</span> → prob = <span class="bias-val">0.25</span>`,
+    ['op1_t4_L','op1_t4_C','op1_t4_R','sb1_t4_L','sb1_t4_M','sb1_t4_R',
+     ...Array.from({length:16},(_,i)=>`sio_all_${i}`)]);
+}
+
+// Step 2: LAT build
+function prepData2(){
+  statesList=[];
+  addStep(`<span class="step-num">Step 2.1 — Building the 16×16 LAT</span><br>
+    For every (α, β) pair, count how often <span class="eq">α·x = β·S(x)</span> holds over all 16 inputs x.<br>
+    <b>LAT[α][β] = count − 8.</b> &nbsp; Table fills in now — <span class="ok-val">green</span> = +4, <span style="color:#ff4081">red</span> = −4.`,
+    ['latSection','lat_fill']);
+  addStep(`<span class="step-num">Step 2.2 — Maximum Bias = ±4 (36 pairs)</span><br>
+    Positive +4 → prob 12/16 = <span class="ok-val">0.75</span> &nbsp;|&nbsp; Negative −4 → prob 4/16 = <span class="bias-val">0.25</span><br>
+    Best pairs from step2 output: α=<span class="mask-val">0111</span>→β=<span class="sbox-val">0100</span> (bias <span class="ok-val">+4</span>),
+    α=<span class="mask-val">0001</span>→β=<span class="sbox-val">0101</span> (bias <span style="color:#ff4081">−4</span>), and 34 more.`,
+    []);
+  addStep(`<span class="step-num">Step 2.3 — Highlighted: Trail Candidates</span><br>
+    <span class="mask-val">Row 7, Col 4</span> (α=0111→β=0100, <span class="ok-val">+4</span>) and
+    <span class="mask-val">Row 1, Col 5</span> (α=0001→β=0101, <span style="color:#ff4081">−4</span>) are highlighted.<br>
+    These feed directly into the sparse trail search in Step 4.`,
+    ['lat_sel_7_4','lat_sel_1_5']);
+}
+
+// Step 3: 3-round SPN value flow
+function prepData3(){
+  statesList=[];
+  const PT_BIN = '0001001000110100010101100111100010010000101010111100110111101111';
+  const K1_BIN = '0011101010010100110101100011111100101011000111000111100010010000';
+  const K2_BIN = '0101011001111000100110101011110011011110111100000001001000110100';
+  const K3_BIN = '0001001101010111100110111101111100100100011010001010110011100000';
+  const K4_BIN = '0000111100011110001011010011110001001011010110100110100101111000';
+  const CT_BIN = '1011111111011100110100101111011011111011101011110011110000011011';
+
+  addStep(`<span class="step-num">Step 3 — Plaintext Input (64-bit)</span><br>
+    Plaintext: <b>0x1234567890ABCDEF</b><br>
+    <span style="font-size:0.82em;color:#607d8b">${PT_BIN.match(/.{4}/g).join(' ')}</span><br>
+    4 nibbles shown left (MSN→). Structure: 3 × (AddKey → 16-nibble S-box → 64-bit P-layer) + final AddKey.`,
+    ['op3_pt_L','op3_pt_C','op3_pt_R','sb3_pt_L','sb3_pt_M','sb3_pt_R']);
+
+  addStep(`<span class="step-num">Step 3 — Round 1: AddKey (K1)</span><br>
+    K1 = <span style="font-size:0.8em;color:#69f0ae">${K1_BIN.match(/.{4}/g).join(' ')}</span><br>
+    state ⊕ K1 → XOR is linear. The linear approximation bias is <b>not changed</b> by AddKey.`,
+    ['op3_ak0_L','op3_ak0_C','op3_ak0_R','sb3_ak0_L','sb3_ak0_M','sb3_ak0_R','sboxPanel']);
+
+  addStep(`<span class="step-num">Step 3 — Round 1: S-box Layer (16 nibbles)</span><br>
+    Each of the 16 four-bit nibbles passes through <span class="sbox-val">SBOX[nibble]</span> independently.<br>
+    The S-box detail panel below shows the <b>first 4 nibbles' input → output flow</b> for this round.<br>
+    This is the non-linear layer — linear approximation bias of ±4 applies here.`,
+    ['op3_sb0_L','op3_sb0_C','op3_sb0_R','sb3_sb0_L','sb3_sb0_M','sb3_sb0_R','sboxPanel',
+     ...Array.from({length:8},(_,i)=>`sio_r1_${i}`)]);
+
+  addStep(`<span class="step-num">Step 3 — Round 1: P-Layer (P(i) = 16i mod 63)</span><br>
+    Bit i moves to position 16i mod 63. Provides full 64-bit diffusion.<br>
+    The permutation is linear — the linear mask propagates through it <b>deterministically</b> in Step 4.`,
+    ['op3_pm0_L','op3_pm0_C','op3_pm0_R','sb3_pm0_L','sb3_pm0_M','sb3_pm0_R']);
+
+  addStep(`<span class="step-num">Step 3 — Rounds 2 &amp; 3 (same structure)</span><br>
+    Round 2: AddKey(K2) → S-box → P-layer. &nbsp; Round 3: AddKey(K3) → S-box → P-layer.<br>
+    K2 and K3 are shown in the panels. After 3 rounds the state is fully diffused.`,
+    ['op3_r23_L','op3_r23_C','op3_r23_R','sb3_r23_L','sb3_r23_M','sb3_r23_R']);
+
+  addStep(`<span class="step-num">Step 3 — Final AddKey (K4) → Ciphertext</span><br>
+    K4 = <span style="font-size:0.8em;color:#69f0ae">${K4_BIN.match(/.{4}/g).join(' ')}</span><br>
+    Ciphertext: <span style="color:#ea80fc">${CT_BIN.match(/.{4}/g).join(' ')}</span><br>
+    Attacker observes (Plaintext, Ciphertext) pairs only. All internal states are hidden.`,
+    ['op3_ct_L','op3_ct_C','op3_ct_R','sb3_ct_L','sb3_ct_M','sb3_ct_R']);
+}
+
+// Step 4: trail search
+function prepData4(){
+  statesList=[];
+  addStep(`<span class="step-num">Step 4.1 — Sparse Trail Search</span><br>
+    For each best (α, β), place the mask on <b>one S-box only</b> (lowest nibble).<br>
+    Propagate β through the real 64-bit P-layer → count active nibbles in output mask.<br>
+    Fewer active nibbles = fewer key bits to guess = lower attack cost.`,
+    ['tr1','tarr1']);
+
+  addStep(`<span class="step-num">Step 4.2 — Trails 2–10: 2 Active S-boxes Each</span><br>
+    Most approximations spread to 2 active nibbles after the real P-layer diffusion.<br>
+    Guessing 8 bits (2 nibbles) of K4 is feasible but not optimal.`,
+    ['tr2','tarr2','tr3','tarr3','tr4','tarr4','tr5','tarr5',
+     'tr6','tarr6','tr7','tarr7','tr8','tarr8','tr9','tarr9','tr10']);
+
+  addStep(`<span class="step-num">Step 4.3 — Best Trail: α=0111, β=0100, only 1 Active S-box</span><br>
+    Trail 1 is unique: β=<span class="sbox-val">0100</span> propagates to <span class="ok-val">exactly 1 nibble</span> after P-layer.<br>
+    Guess only <b>4 bits</b> of K4 → most efficient. Saved as best_sparse_trail.json.`,
+    ['best_badge']);
+}
+
+// Step 5: key recovery
+function prepData5(){
+  statesList=[];
+  addStep(`<span class="step-num">Step 5.1 — Attack Setup</span><br>
+    Trail: α=<span class="mask-val">0111</span>, β=<span class="sbox-val">0100</span>. Real subkey = <span class="ok-val">1000</span> (last nibble of K4).<br>
+    For each guess g (0–15): u = S⁻¹(C[3:0] ⊕ g). Test <span class="eq">α·P[3:0] = β·u</span>.<br>
+    Correct key produces the <b>largest |bias|</b> across 200,000 pairs.`,
+    ['info5_1']);
+  addStep(`<span class="step-num">Step 5.2 — 200,000 Pairs Needed</span><br>
+    Real 3-round PRESENT destroys bias fast. Residual |ε| ≈ <span class="bias-val">0.00115</span>.<br>
+    Need ~200,000 pairs vs ~10,000 for a toy cipher — this is the cost of the real 64-bit P-layer.<br>
+    The S-box detail below shows partial-decryption: C[3:0] ⊕ g → S⁻¹ → u → test β·u.`,
+    ['info5_2','sboxPanel']);
+  addStep(`<span class="step-num">Step 5.3 — Key Ranking (exact step5 output)</span><br>
+    Rank 1: Key=<span class="ok-val">1000</span> |bias|=0.00115 prob=0.49885 ← <span class="ok-val">REAL KEY ✅</span><br>
+    Rank 2: Key=0011 |bias|=0.00114 &nbsp; Rank 3: Key=0100 |bias|=0.00088 …<br>
+    Best guess = <span class="ok-val">1000</span> = Real key. Rank = <span class="ok-val">1</span>.`,
+    ['info5_3']);
+}
+
+function prepareData(){
+  statesList=[]; stepExps=[]; stepIds=[];
+  if(phase===1) prepData1();
+  else if(phase===2) prepData2();
+  else if(phase===3) prepData3();
+  else if(phase===4) prepData4();
+  else if(phase===5) prepData5();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DOM BUILDERS
+// ═══════════════════════════════════════════════════════════════
+function buildGrid(){
+  prepareData();
+  const g = document.getElementById('cipherGrid');
+  while(g.children.length>3) g.removeChild(g.lastChild);
+
+  // Reset panels
+  document.getElementById('sboxPanel').classList.remove('visible');
+  document.getElementById('sboxIoGrid').innerHTML='';
+  document.getElementById('latSection').style.display='none';
+  document.getElementById('trailSection').style.display='none';
+  document.getElementById('attackSection').style.display='none';
+
+  const hL=document.getElementById('hdrL'),hM=document.getElementById('hdrM'),hR=document.getElementById('hdrR');
+
+  if(phase===1){
+    g.style.display='grid';
+    hL.textContent='Input x'; hM.textContent='Mask · Equation'; hR.textContent='S-box Output S(x)';
+    buildStep1DOM(g);
+  } else if(phase===3){
+    g.style.display='grid';
+    hL.textContent='Operation'; hM.textContent='Plaintext → State'; hR.textContent='64-bit State Value';
+    buildStep3DOM(g);
+  } else {
+    g.style.display='none';
+    if(phase===2){ buildLATDOM(); document.getElementById('latSection').style.display='block'; }
+    if(phase===4){ buildTrailDOM(); document.getElementById('trailSection').style.display='block'; }
+  }
+}
+
+// ── render coloured 4-bit string with per-bit mask highlight ──
+function maskBits(val4, maskBits4, activeClass){
+  return fmt4(val4).split('').map((b,i)=>{
+    const sel=((maskBits4>>(3-i))&1)===1;
+    if(sel) return `<span class="${activeClass}" style="font-weight:bold">${b}</span>`;
+    return `<span style="color:#444">${b}</span>`;
+  }).join('');
+}
+
+// ── render a nibble div ──
+function nibDiv(val, cls, id=''){
+  const idAttr=id?`id="${id}"`:'';
+  return `<div class="nib ${cls}" ${idAttr}>${fmtH4(val)}</div>`;
+}
+
+// ═══ STEP 1 DOM ════════════════════════════════════════════════
+function buildStep1DOM(g){
+
+  // ── Test 1: parity(1011) ──
+  const pv=0b1011;
+  g.innerHTML+=`
+    <div class="op-block op-addkey" id="op1_t1_L">Input = 1011</div>
+    <div class="op-block op-center" id="op1_t1_C">⬇</div>
+    <div class="op-block op-addkey" id="op1_t1_R">parity = 1</div>
+
+    <div class="state-box box-input" id="sb1_t1_L">
+      Binary: <b>1011</b>
+      <div class="nibbles">
+        <div class="nib bit-1" style="background:#1e3a5f;border-color:#00b8ff;color:#00e5ff">1</div>
+        <div class="nib bit-0" style="background:#1a1a2e;color:#444">0</div>
+        <div class="nib bit-1" style="background:#1e3a5f;border-color:#00b8ff;color:#00e5ff">1</div>
+        <div class="nib bit-1" style="background:#1e3a5f;border-color:#00b8ff;color:#00e5ff">1</div>
+      </div>
+      <div style="font-size:0.75em;color:#607d8b;margin-top:2px">3 ones → odd</div>
+    </div>
+    <div class="state-box box-mask" id="sb1_t1_M">
+      1 ⊕ 0 ⊕ 1 ⊕ 1<br>
+      = <span style="color:#76ff03;font-size:1.3em;font-weight:bold">1</span><br>
+      <span style="font-size:0.75em;color:#aed581">parity(1011) = 1</span>
+    </div>
+    <div class="state-box box-sbox" id="sb1_t1_R">
+      parity = <span style="color:#76ff03;font-weight:bold;font-size:1.1em">1</span><br>
+      <span style="font-size:0.75em;color:#aed581">Odd count of 1s → 1</span><br>
+      <span style="font-size:0.72em;color:#607d8b">Building block of linear masks</span>
+    </div>`;
+
+  // ── Test 2: α=1010, x=1101 ──
+  const a2=0b1010,x2=0b1101;
+  const andval=a2&x2; // 1000
+  g.innerHTML+=`
+    <div class="op-block op-sbox" id="op1_t2_L">α=1010 · x=1101</div>
+    <div class="op-block op-center" id="op1_t2_C">⬇</div>
+    <div class="op-block op-sbox" id="op1_t2_R">α · x = 1</div>
+
+    <div class="state-box box-input" id="sb1_t2_L">
+      α = <b>1010</b>
+      <div class="nibbles">
+        <div class="nib mask-active">1</div><div class="nib zero">0</div>
+        <div class="nib mask-active">1</div><div class="nib zero">0</div>
+      </div>
+      x = <b>1101</b>
+      <div class="nibbles">
+        <div class="nib nonzero">1</div><div class="nib nonzero">1</div>
+        <div class="nib zero">0</div><div class="nib nonzero">1</div>
+      </div>
+      <div style="font-size:0.72em;color:#607d8b;margin-top:2px">lit = selected by α</div>
+    </div>
+    <div class="state-box box-mask" id="sb1_t2_M">
+      α AND x = <b>${fmt4(andval)}</b><br>
+      <div class="nibbles" style="margin:4px 0">
+        <div class="nib mask-active">1</div><div class="nib zero">0</div>
+        <div class="nib zero">0</div><div class="nib zero">0</div>
+      </div>
+      parity(${fmt4(andval)}) = <span style="color:#76ff03;font-weight:bold;font-size:1.1em">${lm(a2,x2)}</span><br>
+      <span style="font-size:0.72em;color:#aed581">α · x = 1</span>
+    </div>
+    <div class="state-box box-sbox" id="sb1_t2_R">
+      Selected bit XOR'd:<br>
+      <span style="color:#76ff03;font-size:1.1em;font-weight:bold">1 ⊕ 0 ⊕ 0 ⊕ 0 = 1</span><br>
+      <span style="font-size:0.75em;color:#aed581">Only α-selected bits matter</span>
+    </div>`;
+
+  // ── Test 3: α=0001, β=0101, x=0110, S(x)=1010 ──
+  const a3=0b0001,b3=0b0101,x3=0b0110,sx3=SBOX[x3]; // 0xA=1010
+  g.innerHTML+=`
+    <div class="op-block op-sbox" id="op1_t3_L">x=0110 → S(x)=1010</div>
+    <div class="op-block op-center" id="op1_t3_C">⬇</div>
+    <div class="op-block op-sbox" id="op1_t3_R">0 = 0 ✅</div>
+
+    <div class="state-box box-input" id="sb1_t3_L">
+      x = <b>0110</b>
+      <div class="nibbles">
+        <div class="nib zero">0</div><div class="nib nonzero">1</div>
+        <div class="nib nonzero">1</div><div class="nib zero">0</div>
+      </div>
+      α=<span style="color:#76ff03">0001</span> selects LSB<br>
+      α·x = parity(000<b>0</b>) = <span style="color:#76ff03;font-weight:bold">0</span>
+    </div>
+    <div class="state-box box-mask" id="sb1_t3_M">
+      <span style="color:#76ff03">SBOX[0110]</span> = <span style="color:#ea80fc;font-weight:bold">1010</span><br>
+      β=<span style="color:#ea80fc">0101</span> selects bits 0,2<br>
+      β·S(x)=parity(0<b>0</b>0<b>0</b>)=<span style="color:#76ff03;font-weight:bold">0</span><br>
+      <span style="color:#69f0ae;font-weight:bold">✅ 0 = 0  Holds!</span>
+    </div>
+    <div class="state-box box-sbox" id="sb1_t3_R">
+      S(x) = <b>1010</b>
+      <div class="nibbles">
+        <div class="nib sbox-out">1</div><div class="nib zero">0</div>
+        <div class="nib sbox-out">1</div><div class="nib zero">0</div>
+      </div>
+      β=<span style="color:#ea80fc">0101</span> selected bits<br>
+      <span style="font-size:0.72em;color:#aed581">parity = 0</span>
+    </div>`;
+
+  // ── Test 4: all-16 survey (α=0001, β=0101) ──
+  // Build 16 card slots in sboxIoGrid
+  const a4=0b0001,b4=0b0101;
+  const allCards=Array.from({length:16},(_,xi)=>{
+    const sxi=SBOX[xi];
+    const holds=lm(a4,xi)===lm(b4,sxi);
+    const leftBit=lm(a4,xi), rightBit=lm(b4,sxi);
+    return `
+      <div class="sbox-io-card ${holds?'active-card':'output-card'}" id="sio_all_${xi}">
+        <div class="sio-label">x = ${fmt4(xi)}</div>
+        <div class="sio-val" style="color:#00e5ff">${fmtH4(xi)}</div>
+        <div class="sio-arrow">↓ SBOX</div>
+        <div class="sio-val" style="color:#ea80fc">${fmtH4(sxi)}</div>
+        <div class="sio-bits">${fmt4(sxi)}</div>
+        <div style="font-size:0.72em;margin-top:3px;color:${holds?'#76ff03':'#ff4081'}">${holds?'✓ holds':'✗ fails'}</div>
+        <div style="font-size:0.68em;color:#607d8b">${leftBit}=${rightBit}</div>
+      </div>`;
+  }).join('');
+
+  g.innerHTML+=`
+    <div class="op-block op-perm" id="op1_t4_L">Survey all 16 inputs</div>
+    <div class="op-block op-center" id="op1_t4_C">⬇</div>
+    <div class="op-block op-perm" id="op1_t4_R">bias = count−8 = −4</div>
+
+    <div class="state-box box-input" id="sb1_t4_L">
+      All 16 inputs x=0…F<br>
+      α = <span style="color:#76ff03;font-weight:bold">0001</span> &nbsp; β = <span style="color:#ea80fc;font-weight:bold">0101</span><br>
+      <span style="font-size:0.75em;color:#607d8b">Equation holds for x shown below</span>
+    </div>
+    <div class="state-box box-mask" id="sb1_t4_M">
+      Holds: <span style="color:#ff4081;font-size:1.3em;font-weight:bold">4/16</span><br>
+      bias = 4−8 = <span style="color:#ff4081;font-weight:bold">−4</span><br>
+      prob = <span style="color:#ff9800;font-weight:bold">0.25</span>
+    </div>
+    <div class="state-box box-sbox" id="sb1_t4_R">
+      Max |bias| for PRESENT = <span style="color:#76ff03;font-weight:bold">4</span><br>
+      <span style="font-size:0.78em;color:#aed581">36 pairs achieve this maximum</span><br>
+      <span style="font-size:0.72em;color:#607d8b">→ Step 2: build full 16×16 LAT</span>
+    </div>`;
+
+  // populate sboxIoGrid (for all-16 survey)
+  document.getElementById('sboxPanelTitle').textContent=
+    'S-box value flow: α=0001, β=0101 — all 16 inputs x → S(x) → equation check';
+  document.getElementById('sboxIoGrid').innerHTML=allCards;
+}
+
+// ═══ STEP 3 DOM ════════════════════════════════════════════════
+function buildStep3DOM(g){
+  const PT_BIN='0001001000110100010101100111100010010000101010111100110111101111';
+  const K1_BIN='0011101010010100110101100011111100101011000111000111100010010000';
+  const K2_BIN='0101011001111000100110101011110011011110111100000001001000110100';
+  const K3_BIN='0001001101010111100110111101111100100100011010001010110011100000';
+  const K4_BIN='0000111100011110001011010011110001001011010110100110100101111000';
+  const CT_BIN='1011111111011100110100101111011011111011101011110011110000011011';
+
+  // Helper: show first 4 nibbles as hex divs
+  function nibsFrom(binStr, cls){
+    let out='';
+    for(let i=0;i<4;i++){
+      const n=parseInt(binStr.slice(i*4,i*4+4),2);
+      out+=`<div class="nib ${cls}">${n.toString(16).toUpperCase()}</div>`;
+    }
+    return out+'<span style="color:#555;font-size:0.8em;margin-left:3px">…</span>';
+  }
+  // coloured bit string (shortened)
+  function shortBin(b,start,len){
+    return b.slice(start,start+len).split('').map(c=>
+      `<span style="color:${c==='1'?'#00e5ff':'#333'}">${c}</span>`).join('');
+  }
+
+  function addRow(opId,opLabel,opCls, rowId, binStr, midLabel){
+    if(opLabel){
+      g.innerHTML+=`
+        <div class="op-block ${opCls}" id="op3_${opId}_L">${opLabel}</div>
+        <div class="op-block op-center" id="op3_${opId}_C">⬇</div>
+        <div class="op-block ${opCls}" id="op3_${opId}_R">${opLabel}</div>`;
+    }
+    g.innerHTML+=`
+      <div class="state-box box-input" id="sb3_${rowId}_L">
+        <span style="font-size:0.72em;font-family:monospace">${shortBin(binStr,0,32)}</span><br>
+        <span style="font-size:0.72em;font-family:monospace">${shortBin(binStr,32,32)}</span>
+      </div>
+      <div class="state-box box-mask" id="sb3_${rowId}_M" style="font-size:0.8em;color:#aed581">${midLabel}</div>
+      <div class="state-box box-sbox" id="sb3_${rowId}_R">
+        <div class="nibbles">${nibsFrom(binStr,'p2color')}</div>
+        <div style="font-size:0.72em;color:#607d8b;margin-top:2px">first 4 nibbles (hex)</div>
+      </div>`;
+  }
+
+  addRow(null,null,null,'pt',PT_BIN,'Plaintext P');
+  addRow('ak0','AddKey K1','op-addkey','ak0',PT_BIN,'state ⊕ K1');
+  // After AddKey K1: compute manually
+  const ptNibs=Array.from({length:16},(_,i)=>parseInt(PT_BIN.slice(i*4,i*4+4),2));
+  const k1Nibs=Array.from({length:16},(_,i)=>parseInt(K1_BIN.slice(i*4,i*4+4),2));
+  const ak0Nibs=ptNibs.map((n,i)=>n^k1Nibs[i]);
+  const ak0Bin=ak0Nibs.map(n=>n.toString(2).padStart(4,'0')).join('');
+  addRow('sb0','S-box Layer (16 nibbles)','op-sbox','sb0',
+    ak0Nibs.map(n=>SBOX[n].toString(2).padStart(4,'0')).join(''), 'SBOX[nibble]×16');
+
+  // S-box IO cards for round 1 (first 8 nibbles shown)
+  const sio8=ak0Nibs.slice(0,8).map((n,i)=>{
+    const sn=SBOX[n];
+    return `
+      <div class="sbox-io-card" id="sio_r1_${i}" style="border-color:#e040fb55">
+        <div class="sio-label">Nibble ${i}</div>
+        <div class="sio-val" style="color:#00e5ff">${fmt4(n)}</div>
+        <div class="sio-arrow">↓ SBOX</div>
+        <div class="sio-val" style="color:#ea80fc">${fmt4(sn)}</div>
+        <div class="sio-bits">${fmtH4(n)} → ${fmtH4(sn)}</div>
+      </div>`;
+  }).join('');
+  document.getElementById('sboxPanelTitle').textContent=
+    'Round 1 S-box: first 8 nibbles input → SBOX[x] → output';
+  document.getElementById('sboxIoGrid').innerHTML=sio8;
+
+  addRow('pm0','P-Layer (P(i)=16i mod 63)','op-perm','pm0',
+    ak0Nibs.map(n=>SBOX[n].toString(2).padStart(4,'0')).join(''),'bit scatter');
+
+  // Rounds 2+3 combined
+  g.innerHTML+=`
+    <div class="op-block op-addkey" id="op3_r23_L">Rounds 2 &amp; 3 (same structure)</div>
+    <div class="op-block op-center" id="op3_r23_C">⬇</div>
+    <div class="op-block op-addkey" id="op3_r23_R">AddKey K2,K3 + S-box + P-layer</div>
+    <div class="state-box box-input" id="sb3_r23_L">
+      K2: <span style="font-size:0.68em;font-family:monospace;color:#69f0ae">${shortBin(K2_BIN,0,32)}<br>${shortBin(K2_BIN,32,32)}</span>
+    </div>
+    <div class="state-box box-mask" id="sb3_r23_M" style="font-size:0.8em">
+      K3: <span style="font-size:0.85em;color:#69f0ae">${shortBin(K3_BIN,0,16)}…</span><br>
+      <span style="color:#aed581;font-size:0.85em">3 full rounds complete</span>
+    </div>
+    <div class="state-box box-sbox" id="sb3_r23_R">
+      <span style="color:#aed581">State after Round 3</span><br>
+      <span style="font-size:0.75em;color:#607d8b">ready for final AddKey K4</span>
+    </div>`;
+
+  addRow('ct','Final AddKey K4','op-addkey','ct',CT_BIN,'Ciphertext C');
+}
+
+// ═══ LAT DOM ═══════════════════════════════════════════════════
+function buildLATDOM(){
+  const tbl=document.getElementById('latTable');
+  let h='<thead><tr><th style="background:#0a0a14;color:#555;font-size:0.72em">α\\β</th>';
+  for(let b=0;b<16;b++) h+=`<th>${b.toString(16).toUpperCase()}</th>`;
+  h+='</tr></thead><tbody>';
+  for(let a=0;a<16;a++){
+    h+=`<tr><th>${a.toString(16).toUpperCase()}</th>`;
+    for(let b=0;b<16;b++){
+      const v=LAT[a][b];
+      const cls=v===0?'zm':Math.abs(v)>=4?(v>0?'hp':'hn'):'md';
+      h+=`<td class="${cls}" id="lat_${a}_${b}">${v}</td>`;
+    }
+    h+='</tr>';
+  }
+  tbl.innerHTML=h+'</tbody>';
+}
+function revealLATCells(){
+  document.querySelectorAll('#latTable td').forEach((td,i)=>
+    setTimeout(()=>{ td.style.opacity='1'; }, i*4));
+}
+function selectLAT(a,b,id){
+  const el=document.getElementById(`lat_${a}_${b}`);
+  if(el){ el.classList.add('sel'); el.id=id||el.id; }
+}
+
+// ═══ TRAIL DOM ═════════════════════════════════════════════════
+function buildTrailDOM(){
+  const c=document.getElementById('trailRows');
+  c.innerHTML='';
+  TRAILS.forEach((t,i)=>{
+    const bs=t.bias>0?`<span class="tr-bp">+${t.bias}</span>`:`<span class="tr-bn">${t.bias}</span>`;
+    c.innerHTML+=`
+      <div class="trail-row ${t.best?'trail-best':'trail-norm'}" id="tr${i+1}">
+        <div class="tr-n">Trail ${t.n}</div>
+        <div class="tr-body">
+          α=<span class="tr-a">${t.a}</span> &nbsp;
+          β=<span class="tr-b">${t.b}</span> &nbsp;
+          bias=${bs} &nbsp;
+          active=<span class="tr-ac">${t.active}</span>
+          ${t.best?'&nbsp;<b style="color:#76ff03">← BEST</b>':''}
+          <div class="tr-mask">${t.mask}</div>
+        </div>
+      </div>
+      ${i<TRAILS.length-1?`<div class="trail-arrow" id="tarr${i+1}">⬇</div>`:''}`;
+  });
+  c.innerHTML+=`
+    <div class="best-badge" id="best_badge">
+      <div style="color:#ffd600;font-weight:bold;margin-bottom:7px">✅ SELECTED: best_sparse_trail.json</div>
+      <div>α=<span style="color:#40c4ff;font-weight:bold;letter-spacing:3px">0111</span>
+           &nbsp;→&nbsp;
+           β=<span style="color:#ea80fc;font-weight:bold;letter-spacing:3px">0100</span></div>
+      <div style="margin-top:7px;font-size:0.85em;color:#aed581">
+        LAT bias = +4 &nbsp;|&nbsp; Active S-boxes = <span style="color:#76ff03;font-weight:bold">1</span>
+      </div>
+      <div style="font-size:0.78em;color:#558b2f;margin-top:4px">
+        β=0100 propagates to 1 nibble through P-layer → guess only 4 bits of K4
+      </div>
+    </div>`;
+}
+
+// ═══ ATTACK DOM ════════════════════════════════════════════════
+function buildAttack(){
+  const sec=document.getElementById('attackSection');
+  sec.style.display='block';
+  document.getElementById('attackTitle').innerHTML=
+    `🎯 Partial Key Recovery &nbsp;|&nbsp; α=<span style="color:#76ff03">0111</span> β=<span style="color:#ea80fc">0100</span> &nbsp;|&nbsp; Real key nibble = <span style="color:#76ff03">1000</span>`;
+  const grid=document.getElementById('guessGrid');
+  grid.innerHTML='';
+
+  // Build S-box partial-decrypt illustration in panel
+  document.getElementById('sboxPanelTitle').textContent=
+    'Step 5: partial decryption — for each key guess g: u = S⁻¹(C[3:0] ⊕ g), test α·P[3:0] = β·u';
+  const ioCards=Array.from({length:16},(_,g)=>{
+    const isReal=(g===REAL_SUBKEY);
+    return `
+      <div class="sbox-io-card ${isReal?'active-card':''}">
+        <div class="sio-label">guess g=${fmt4(g)}</div>
+        <div class="sio-val" style="color:#00e5ff">${fmt4(g)}</div>
+        <div class="sio-arrow">↓ S⁻¹(C⊕g)</div>
+        <div class="sio-val" style="color:#ea80fc">${fmt4(SBOX_INV[g])}</div>
+        <div class="sio-bits">u=${fmt4(SBOX_INV[g])}</div>
+        ${isReal?'<div style="color:#76ff03;font-size:0.72em;margin-top:2px">REAL KEY</div>':''}
+      </div>`;
+  }).join('');
+  document.getElementById('sboxIoGrid').innerHTML=ioCards;
+  document.getElementById('sboxPanel').classList.add('visible');
+
+  const maxBias=KEY_RANKS[0].bias;
+  KEY_RANKS.forEach((r,i)=>{
+    const pct=Math.round(r.bias/maxBias*100);
+    const clr=r.real?'#00e676':'#e53935';
+    const card=document.createElement('div');
+    card.className='guess-card';
+    card.innerHTML=`
+      <div class="guess-key">Key=${r.key}</div>
+      <div style="font-size:0.68em;color:#555">Rank #${r.rank}</div>
+      <div class="guess-score" style="color:${r.real?'#69f0ae':'#ef9a9a'}">|bias| ${r.bias.toFixed(5)}</div>
+      <div style="font-size:0.68em;color:#607d8b">prob ${r.prob.toFixed(5)}</div>
+      <div class="score-bar"><div class="score-fill" id="bar_${i}" style="width:0%;background:${clr}"></div></div>
+      ${r.real?'<div style="color:#00e676;font-size:0.72em;margin-top:3px">✅ REAL KEY — Rank #1</div>':''}`;
+    grid.appendChild(card);
+    setTimeout(()=>{
+      card.classList.add('visible');
+      card.classList.add(r.real?'winner':'loser');
+      setTimeout(()=>{ const b=document.getElementById('bar_'+i); if(b) b.style.width=pct+'%'; },200);
+    }, i*60);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ANIMATION LOOP  (identical to differential)
+// ═══════════════════════════════════════════════════════════════
+function showExplain(idx){ document.getElementById('explainBox').innerHTML=stepExps[idx]||''; }
+function revealIds(ids){
+  ids.forEach(id=>{
+    if(id==='sboxPanel'){
+      document.getElementById('sboxPanel').classList.add('visible');
+    } else if(id==='lat_fill'){
+      revealLATCells();
+    } else if(id==='lat_sel_7_4'){
+      selectLAT(7,4,'lat_sel_7_4');
+    } else if(id==='lat_sel_1_5'){
+      selectLAT(1,5,'lat_sel_1_5');
+    } else {
+      const el=document.getElementById(id);
+      if(el){ el.classList.add('visible'); el.style.opacity='1'; el.style.transform='translateY(0) translateX(0) scale(1)'; }
+    }
+  });
+}
+
+function animStep(){
+  if(step>=stepIds.length){
+    if(phase===5) buildAttack();
+    showExplain(stepExps.length-1);
+    document.getElementById('startBtn').textContent='▶ Start Animation';
+    return;
+  }
+  showExplain(step);
+  revealIds(stepIds[step]);
+  step++;
+  animTimer=setTimeout(animStep, speedMs);
+}
+
+function startAnim(){
+  if(animTimer) return;
+  document.getElementById('startBtn').textContent='▶ Running...';
+  animStep();
+}
+
+function resetAnim(){
+  clearTimeout(animTimer); animTimer=null; step=0;
+  document.getElementById('startBtn').textContent='▶ Start Animation';
+  document.getElementById('explainBox').innerHTML='Select a step above and press <b>▶ Start Animation</b>.';
+  document.getElementById('attackSection').style.display='none';
+  document.querySelectorAll('#latTable td').forEach(td=>{
+    td.style.opacity='0'; td.classList.remove('sel');
+  });
+  buildGrid();
+}
+
+function jumpTo(n){
+  phase=n;
+  [1,2,3,4,5].forEach(i=>
+    document.getElementById('jp'+i).classList.toggle('active-btn', i===n)
+  );
+  resetAnim();
+}
+
+function setSpeed(n){
+  speedMs=900/n;
+  ['s1','s2'].forEach(id=>document.getElementById(id).classList.remove('active-btn'));
+  document.getElementById('s'+n).classList.add('active-btn');
+}
+
+// ── INIT ──
+window.onload=function(){ buildGrid(); setSpeed(1); };
+</script>
+</body>
+</html>
